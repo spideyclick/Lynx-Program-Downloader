@@ -1,4 +1,9 @@
 # Lynx-Program-Downloader
+
+## This program is currently not functional!
+
+But it partially is...I just need to iron out the kinks.
+
 This is a bash shell script that downloads, updates and sorts files from websites that require you to go through several pages to initiate a download, and it uses Lynx to do so.
 
 This script is made to run on Linux distributions that use Bash (Doesn't work so well with regular shell right now).
