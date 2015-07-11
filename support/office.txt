@@ -1,2 +1,9 @@
+http://www.majorgeeks.com/mg/get/libreoffice_productivity_suite,1.html
+http://www.majorgeeks.com/mg/get/mozilla_thunderbird_17_05_final,1.html
+http://www.majorgeeks.com/mg/getmirror/foxit_reader,1.html
+http://www.majorgeeks.com/mg/getmirror/apache_openoffice_org_for_windows,1.html
+http://www.majorgeeks.com/mg/getmirror/imgburn,1.html
+http://www.majorgeeks.com/mg/getmirror/infrarecorder,1.html
 http://www.majorgeeks.com/mg/getmirror/scribus,1.html
+http://www.majorgeeks.com/mg/getmirror/primopdf,1.html
 exit
