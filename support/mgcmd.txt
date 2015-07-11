@@ -1,0 +1,37 @@
+# Command logfile created by Lynx 2.8.8dev.15 (18 Nov 2012)
+# Arg0 = lynx
+key /
+key c
+key l
+key i
+key c
+key k
+key <space>
+key h
+key e
+key r
+key e
+key <space>
+key i
+key f
+key <space>
+key i
+key t
+key <space>
+key d
+key o
+key e
+key s
+key <space>
+key n
+key o
+key t
+key ^J
+key ^J
+key d
+key d
+key Down Arrow
+key ^J
+key ^J
+key q
+key q
