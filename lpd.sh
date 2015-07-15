@@ -77,17 +77,14 @@ for ARG ; do
       fi
     fi
     if [ "$ARG" == "-r" ] || [ "$ARG" == "--reset" ] ; then
-      if [ "`ls $WORKINGDIR/logs/badfiles/`" != "" ] ; then
-	rm -f $WORKINGDIR/logs/badfiles/* && echo "files cleared"
-      else echo "no files to clear"
-      fi
-      if [ -f $WORKINGDIR/logs/failed.txt ] ; then
-	NOW=`date`
-	mv $WORKINGDIR/logs/failed.txt "$WORKINGDIR/logs/failed: $NOW.txt"
-	echo "failed.txt archived and cleared."
-      else echo "no logs to clear"
-      fi
       UNKNOWN_OPT="0"
+      printlog "renaming download_progress.log to download_progress_`date`.log"
+      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
+      printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
+      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
+        rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
+      else printlog "no files to clear"
+      fi
     fi
     if [ "$ARG" == "-t" ] || [ "$ARG" == "--test" ] ; then
       echo "Test mode!"
@@ -237,10 +234,9 @@ if [ -z $DOWNLOAD_SET ] ; then
     fi
     if [ "$DOWNLOAD_SET" == "clear_logs" ]; then
       UNKNOWN_OPT="0"
-      NOW=`date`
-      printlog "renaming download_progress.log to download_progress_$NOW.log"
-      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_$NOW.log"
-      printlog "logs cleared:  renamed download_progress.log to download_progress_$NOW.log"
+      printlog "renaming download_progress.log to download_progress_`date`.log"
+      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
+      printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
       if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
         rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
       else printlog "no files to clear"
