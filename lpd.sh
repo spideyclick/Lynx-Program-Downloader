@@ -17,6 +17,7 @@ WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 ###CONFIGURATION
 DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads"
 mkdir $DOWNLOAD_DIRECTORY > /dev/null 2>&1
+mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE > /dev/null 2>&1
 LOGFILE="$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log"
 touch $LOGFILE
 
@@ -99,20 +100,23 @@ for ARG ; do
   fi
 done
 
-###DEPENDENCY CHECK
-which rpm > /dev/null 2>&1
-if [ "$?" == "0" ] ; then
-  PKGMAN="rpm"
-  printlog "Package Manager: $PKGMAN"
-fi
-which apt > /dev/null 2>&1
-if [ "$?" == "0" ] ; then
-  PKGMAN="apt"
-  printlog "Package Manager: $PKGMAN"
-fi
-if [ -z "$PKGMAN" ] ; then
-  printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" && return 1
-fi
+###FUNCTIONS
+pckmgrchk () {
+  which rpm > /dev/null 2>&1
+  if [ "$?" == "0" ] ; then
+    PKGMAN="rpm"
+    printlog "Package Manager: $PKGMAN"
+  fi
+  which apt > /dev/null 2>&1
+  if [ "$?" == "0" ] ; then
+    PKGMAN="apt"
+    printlog "Package Manager: $PKGMAN"
+  fi
+  if [ -z "$PKGMAN" ] ; then
+    printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" && return 1
+  fi
+  }
+
 
 depcheck () {
   which "$1" >> /dev/null
@@ -183,9 +187,13 @@ progdownload () {
 cd $WORKINGDIR
 echo "" >> $LOGFILE
 printlog "lpd started at `date`"
+
+###DEPENDENCY CHECK
+pckmgrchk
 depcheck wget
 depcheck lynx
 
+###MENU
 mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`" > /dev/null 2>&1
 mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles" > /dev/null 2>&1
 if [ -z $DOWNLOAD_SET ] ; then
@@ -229,15 +237,13 @@ if [ -z $DOWNLOAD_SET ] ; then
     fi
     if [ "$DOWNLOAD_SET" == "clear_logs" ]; then
       UNKNOWN_OPT="0"
-      if [ -n != "`ls $WORKINGDIR/logs/badfiles/`" ] ; then
+      NOW=`date`
+      printlog "renaming download_progress.log to download_progress_$NOW.log"
+      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_$NOW.log"
+      printlog "logs cleared:  renamed download_progress.log to download_progress_$NOW.log"
+      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
         rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
       else printlog "no files to clear"
-      fi
-      if [ -f $WORKINGDIR/logs/failed.txt ] ; then
-        NOW=`date`
-        mv $WORKINGDIR/logs/failed.txt "$WORKINGDIR/logs/failed: $NOW.txt"
-        printlog "failed.txt archived and cleared."
-      else printlog "no logs to clear"
       fi
     fi
     if [ "$DOWNLOAD_SET" == "configure" ]; then
