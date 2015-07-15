@@ -23,7 +23,7 @@ touch $LOGFILE
 
 printlog () {
   echo $1
-  if [ $2 == "failed" ] ; then
+  if [ "$2" == "failed" ] ; then
     echo "FAIL:  $1" >> $LOGFILE
   else
     echo $1 >> $LOGFILE
