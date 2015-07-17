@@ -16,8 +16,8 @@ WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ###CONFIGURATION
 DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads"
-mkdir $DOWNLOAD_DIRECTORY > /dev/null 2>&1
-mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE > /dev/null 2>&1
+mkdir $DOWNLOAD_DIRECTORY
+mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE
 LOGFILE="$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log"
 touch $LOGFILE
 
@@ -99,12 +99,12 @@ done
 
 ###FUNCTIONS
 pckmgrchk () {
-  which rpm > /dev/null 2>&1
+  which rpm
   if [ "$?" == "0" ] ; then
     PKGMAN="rpm"
     printlog "Package Manager: $PKGMAN"
   fi
-  which apt > /dev/null 2>&1
+  which apt
   if [ "$?" == "0" ] ; then
     PKGMAN="apt"
     printlog "Package Manager: $PKGMAN"
@@ -145,14 +145,14 @@ depcheck () {
   fi }
 
 progdownload () {
-  mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$2" > /dev/null 2>&1
+  mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$2"
   NOW=$(date +"%Y_%m_%d") && printlog "$DOWNLOAD_SET started at $NOW"
   MYNUM="0"
   until [ "$URL" == "exit" ] ; do
     echo "" >> $LOGFILE
     MYNUM=$((MYNUM + 1))
     URL="$(sed ''$MYNUM'q;d' $1)" && printlog "$MYNUM) downloading $URL"
-    mkdir "$WORKINGDIR/tmp" > /dev/null 2>&1
+    mkdir "$WORKINGDIR/tmp"
     cd "$WORKINGDIR/tmp"
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
     FILE=`(ls | head -n 1)`
@@ -191,8 +191,8 @@ depcheck wget
 depcheck lynx
 
 ###MENU
-mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`" > /dev/null 2>&1
-mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles" > /dev/null 2>&1
+mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`"
+mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles"
 if [ -z $DOWNLOAD_SET ] ; then
   until [ "$DOWNLOAD_SET" == "exit" ] ; do
     UNKNOWN_OPT="1"
