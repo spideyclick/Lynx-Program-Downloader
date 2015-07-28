@@ -162,7 +162,7 @@ progdownload () {
     echo "" >> $LOGFILE
     MYNUM=$((MYNUM + 1))
     URL="$(sed ''$MYNUM'q;d' $1)" && printlog "$MYNUM) downloading $URL"
-    mkdir "$WORKINGDIR/tmp"
+    mkdir "$WORKINGDIR/tmp" 2> /dev/null 
     cd "$WORKINGDIR/tmp"
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
     FILE=`(ls | head -n 1)`
