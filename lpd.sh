@@ -173,7 +173,7 @@ progdownload () {
       BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
       until [ -z "$FILE" ] ; do
         if [ $BAD == "0" ] ; then
-          mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
+          progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
           printlog "Download $FILE is of unknown type. $URL" "failed"
         else
           if [ -z $DOWNLOADER ] ; then
