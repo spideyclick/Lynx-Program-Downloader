@@ -144,6 +144,16 @@ depcheck () {
   else printlog "Dependency check of $1 success"
   fi }
 
+progupdatechk () {
+  if [ -f "$2" ] ; then
+    printlog "File already in download directory!  Deleting new file and skipping..."
+    rm -f $1
+  else
+    printlog "Moving $1 to $2..."
+    mv "$1" "$2"
+  fi
+  }
+
 progdownload () {
   mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$2"
   NOW=$(date +"%Y_%m_%d") && printlog "$DOWNLOAD_SET started at $NOW"
@@ -167,9 +177,9 @@ progdownload () {
           printlog "Download $FILE is of unknown type. $URL" "failed"
         else
           if [ -z $DOWNLOADER ] ; then
-            mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$FILE"
+            progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$FILE"
           else
-            mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/${FILE%%.*}($DOWNLOADER).${FILE#*.}"
+            progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/${FILE%%.*}($DOWNLOADER).${FILE#*.}"
           fi
           printlog "Download success of $FILE from $URL"
         fi
