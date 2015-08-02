@@ -207,7 +207,7 @@ if [ -z $DOWNLOAD_SET ] ; then
   until [ "$DOWNLOAD_SET" == "exit" ] ; do
     UNKNOWN_OPT="1"
     echo "Which batch would you like to download?"
-    echo "all antivirus creative utilities office clear_logs configure exit"
+    echo "all antivirus creative utilities office clear_logs configure help exit"
   #   DOWNLOAD_SELECTION="All Majorgeeks Wgets Antivirus Creative Utilities Office Clear_logs Configure Exit"
   #   select opt in $DOWNLOAD_SELECTION; do
   #     DOWNLOAD_SET="$opt"
@@ -257,6 +257,17 @@ if [ -z $DOWNLOAD_SET ] ; then
       echo "Please enter the path to the folder you would like your new downloads to be dropped off:"
       read DOWNLOAD_DIRECTORY
       export DOWNLOAD_DIRECTORY
+    fi
+    if [ "$DOWNLOAD_SET" == "help" ]; then
+      UNKNOWN_OPT="0"
+      echo "Usage: pdu.sh -i [USER'S INITIALS]... -s [DOWNLOAD SET]... -c -h"
+      echo "  -h, --help 			prints this help message"
+      echo "  -i, --initials       Specifies initials to be appended to file names"
+      echo "  -s, --set 			allows you to choose from a predefined set of downloads"
+      echo "  -c, --configure 		walks you through the configuration process"
+      echo "  -r, --reset 			resets all logs"
+      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
+      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
     fi
     if [ "$DOWNLOAD_SET" == "exit" ]; then
       UNKNOWN_OPT="0"
