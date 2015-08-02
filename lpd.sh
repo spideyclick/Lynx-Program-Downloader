@@ -16,13 +16,14 @@ WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ###CONFIGURATION
 DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads"
-mkdir $DOWNLOAD_DIRECTORY > /dev/null 2>&1
+mkdir $DOWNLOAD_DIRECTORY
+mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE
 LOGFILE="$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log"
 touch $LOGFILE
 
 printlog () {
   echo $1
-  if [ $2 == "failed" ] ; then
+  if [ "$2" == "failed" ] ; then
     echo "FAIL:  $1" >> $LOGFILE
   else
     echo $1 >> $LOGFILE
@@ -36,10 +37,12 @@ for ARG ; do
     UNKNOWN_OPT="1"
     if [ "$SKIP_ARG" == "1" ] ; then
       SKIP_ARG="0"
+      UNKNOWN_OPT="0"
     fi
     if [ "$ARG" == "-h" ] || [ "$ARG" == "--help" ] ; then
       echo "Usage: pdu.sh -i [USER'S INITIALS]... -s [DOWNLOAD SET]... -c -h"
       echo "  -h, --help 			prints this help message"
+      echo "  -i, --initials       Specifies initials to be appended to file names"
       echo "  -s, --set 			allows you to choose from a predefined set of downloads"
       echo "  -c, --configure 		walks you through the configuration process"
       echo "  -r, --reset 			resets all logs"
@@ -53,28 +56,35 @@ for ARG ; do
       UNKNOWN_OPT="0"
       shift
     fi
+    if [ "$ARG" == "-i" ] || [ "$ARG" == "--initials" ] ; then
+      if [ -z "$2" ] ; then
+        echo "Please specify initials to be placed on downloads" && return 1
+      else
+        DOWNLOADER="$2"
+        echo "$DOWNLOADER will be appended to filenames."
+        UNKNOWN_OPT="0"
+        SKIP_ARG="1"
+      fi
+    fi
     if [ "$ARG" == "-s" ] || [ "$ARG" == "--set" ] ; then
       if [ -z "$2" ] ; then
 	echo "Please specify set to download" && return 1
       else
-	echo "Downloading $2..."
-	DOWNLOAD_SET="$2"
-	UNKNOWN_OPT="0"
-	SKIP_ARG="1"
+        echo "Downloading $2..."
+        DOWNLOAD_SET="$2"
+        UNKNOWN_OPT="0"
+        SKIP_ARG="1"
       fi
     fi
     if [ "$ARG" == "-r" ] || [ "$ARG" == "--reset" ] ; then
-      if [ "`ls $WORKINGDIR/logs/badfiles/`" != "" ] ; then
-	rm -f $WORKINGDIR/logs/badfiles/* && echo "files cleared"
-      else echo "no files to clear"
-      fi
-      if [ -f $WORKINGDIR/logs/failed.txt ] ; then
-	NOW=`date`
-	mv $WORKINGDIR/logs/failed.txt "$WORKINGDIR/logs/failed: $NOW.txt"
-	echo "failed.txt archived and cleared."
-      else echo "no logs to clear"
-      fi
       UNKNOWN_OPT="0"
+      printlog "renaming download_progress.log to download_progress_`date`.log"
+      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
+      printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
+      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
+        rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
+      else printlog "no files to clear"
+      fi
     fi
     if [ "$ARG" == "-t" ] || [ "$ARG" == "--test" ] ; then
       echo "Test mode!"
@@ -87,20 +97,23 @@ for ARG ; do
   fi
 done
 
-###DEPENDENCY CHECK
-which rpm > /dev/null 2>&1
-if [ "$?" == "0" ] ; then
-  PKGMAN="rpm"
-  printlog "Package Manager: $PKGMAN"
-fi
-which apt > /dev/null 2>&1
-if [ "$?" == "0" ] ; then
-  PKGMAN="apt"
-  printlog "Package Manager: $PKGMAN"
-fi
-if [ -z "$PKGMAN" ] ; then
-  printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" && return 1
-fi
+###FUNCTIONS
+pckmgrchk () {
+  which rpm
+  if [ "$?" == "0" ] ; then
+    PKGMAN="rpm"
+    printlog "Package Manager: $PKGMAN"
+  fi
+  which apt
+  if [ "$?" == "0" ] ; then
+    PKGMAN="apt"
+    printlog "Package Manager: $PKGMAN"
+  fi
+  if [ -z "$PKGMAN" ] ; then
+    printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" && return 1
+  fi
+  }
+
 
 depcheck () {
   which "$1" >> /dev/null
@@ -131,15 +144,25 @@ depcheck () {
   else printlog "Dependency check of $1 success"
   fi }
 
+progupdatechk () {
+  if [ -f "$2" ] ; then
+    printlog "File already in download directory!  Deleting new file and skipping..."
+    rm -f $1
+  else
+    printlog "Moving $1 to $2..."
+    mv "$1" "$2"
+  fi
+  }
+
 progdownload () {
-  mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$2" > /dev/null 2>&1
+  mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$2"
   NOW=$(date +"%Y_%m_%d") && printlog "$DOWNLOAD_SET started at $NOW"
   MYNUM="0"
   until [ "$URL" == "exit" ] ; do
     echo "" >> $LOGFILE
     MYNUM=$((MYNUM + 1))
     URL="$(sed ''$MYNUM'q;d' $1)" && printlog "$MYNUM) downloading $URL"
-    mkdir "$WORKINGDIR/tmp" > /dev/null 2>&1
+    mkdir "$WORKINGDIR/tmp" 2> /dev/null 
     cd "$WORKINGDIR/tmp"
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
     FILE=`(ls | head -n 1)`
@@ -150,10 +173,14 @@ progdownload () {
       BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
       until [ -z "$FILE" ] ; do
         if [ $BAD == "0" ] ; then
-          mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
+          progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
           printlog "Download $FILE is of unknown type. $URL" "failed"
         else
-          mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$FILE"
+          if [ -z $DOWNLOADER ] ; then
+            progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$FILE"
+          else
+            progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/${FILE%%.*}($DOWNLOADER).${FILE#*.}"
+          fi
           printlog "Download success of $FILE from $URL"
         fi
         FILE=`(ls | head -n 1)`
@@ -167,75 +194,91 @@ progdownload () {
 cd $WORKINGDIR
 echo "" >> $LOGFILE
 printlog "lpd started at `date`"
+
+###DEPENDENCY CHECK
+pckmgrchk
 depcheck wget
 depcheck lynx
 
-mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`" > /dev/null 2>&1
-mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles" > /dev/null 2>&1
-
-until [ "$DOWNLOAD_SET" == "exit" ] ; do
-  UNKNOWN_OPT="1"
-  echo "Which batch would you like to download?"
-  echo "all antivirus creative utilities office clear_logs configure exit"
-#   DOWNLOAD_SELECTION="All Majorgeeks Wgets Antivirus Creative Utilities Office Clear_logs Configure Exit"
-#   select opt in $DOWNLOAD_SELECTION; do
-#     DOWNLOAD_SET="$opt"
-#   done
-  read DOWNLOAD_SET
-  if [ "$DOWNLOAD_SET" == "all" ] ; then
-    UNKNOWN_OPT="0"
-    printlog "Downloading $DOWNLOAD_SET ..."
-    progdownload "$WORKINGDIR/wgetadrs.txt" "unsorted"
-    progdownload "$WORKINGDIR/support/antivirus.txt" "antivirus"
-    progdownload "$WORKINGDIR/support/creative.txt" "creative"
-    progdownload "$WORKINGDIR/support/utilities.txt" "utilities"
-    progdownload "$WORKINGDIR/support/office.txt" "office"
-  fi
-  if [ "$DOWNLOAD_SET" == "antivirus" ]; then
-    UNKNOWN_OPT="0"
-    printlog "Downloading $DOWNLOAD_SET ..."
-    progdownload "$WORKINGDIR/support/antivirus.txt" "antivirus"
-  fi
-  if [ "$DOWNLOAD_SET" == "creative" ]; then
-    UNKNOWN_OPT="0"
-    printlog "Downloading $DOWNLOAD_SET ..."
-    progdownload "$WORKINGDIR/support/creative.txt" "creative"
-  fi
-  if [ "$DOWNLOAD_SET" == "utilities" ]; then
-    UNKNOWN_OPT="0"
-    printlog "Downloading $DOWNLOAD_SET ..."
-    progdownload "$WORKINGDIR/support/utilities.txt" "utilities"
-  fi
-  if [ "$DOWNLOAD_SET" == "office" ]; then
-    UNKNOWN_OPT="0"
-    printlog "Downloading $DOWNLOAD_SET ..."
-    progdownload "$WORKINGDIR/support/office.txt" "office"
-  fi
-  if [ "$DOWNLOAD_SET" == "clear_logs" ]; then
-    UNKNOWN_OPT="0"
-    if [ -n != "`ls $WORKINGDIR/logs/badfiles/`" ] ; then
-      rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
-    else printlog "no files to clear"
+###MENU
+mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`"
+mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles"
+if [ -z $DOWNLOAD_SET ] ; then
+  until [ "$DOWNLOAD_SET" == "exit" ] ; do
+    UNKNOWN_OPT="1"
+    echo "Which batch would you like to download?"
+    echo "all antivirus creative utilities office clear_logs configure help exit"
+  #   DOWNLOAD_SELECTION="All Majorgeeks Wgets Antivirus Creative Utilities Office Clear_logs Configure Exit"
+  #   select opt in $DOWNLOAD_SELECTION; do
+  #     DOWNLOAD_SET="$opt"
+  #   done
+    read DOWNLOAD_SET
+    if [ "$DOWNLOAD_SET" == "all" ] ; then
+      UNKNOWN_OPT="0"
+      printlog "Downloading $DOWNLOAD_SET ..."
+      progdownload "$WORKINGDIR/wgetadrs.txt" "unsorted"
+      progdownload "$WORKINGDIR/support/antivirus.txt" "antivirus"
+      progdownload "$WORKINGDIR/support/creative.txt" "creative"
+      progdownload "$WORKINGDIR/support/utilities.txt" "utilities"
+      progdownload "$WORKINGDIR/support/office.txt" "office"
     fi
-    if [ -f $WORKINGDIR/logs/failed.txt ] ; then
-      NOW=`date`
-      mv $WORKINGDIR/logs/failed.txt "$WORKINGDIR/logs/failed: $NOW.txt"
-      printlog "failed.txt archived and cleared."
-    else printlog "no logs to clear"
+    if [ "$DOWNLOAD_SET" == "antivirus" ]; then
+      UNKNOWN_OPT="0"
+      printlog "Downloading $DOWNLOAD_SET ..."
+      progdownload "$WORKINGDIR/support/antivirus.txt" "antivirus"
     fi
-  fi
-  if [ "$DOWNLOAD_SET" == "configure" ]; then
-    UNKNOWN_OPT="0"
-    echo "Please enter the path to the folder you would like your new downloads to be dropped off:"
-    read DOWNLOAD_DIRECTORY
-    export DOWNLOAD_DIRECTORY
-  fi
-  if [ "$DOWNLOAD_SET" == "exit" ]; then
-    UNKNOWN_OPT="0"
-    printlog "Goodbye!"
-    DOWNLOAD_SET="exit"
-  fi
-  if [ "$UNKNOWN_OPT" == "1" ] ; then
-  echo "I beg your pardon?"
-  fi
-done
+    if [ "$DOWNLOAD_SET" == "creative" ]; then
+      UNKNOWN_OPT="0"
+      printlog "Downloading $DOWNLOAD_SET ..."
+      progdownload "$WORKINGDIR/support/creative.txt" "creative"
+    fi
+    if [ "$DOWNLOAD_SET" == "utilities" ]; then
+      UNKNOWN_OPT="0"
+      printlog "Downloading $DOWNLOAD_SET ..."
+      progdownload "$WORKINGDIR/support/utilities.txt" "utilities"
+    fi
+    if [ "$DOWNLOAD_SET" == "office" ]; then
+      UNKNOWN_OPT="0"
+      printlog "Downloading $DOWNLOAD_SET ..."
+      progdownload "$WORKINGDIR/support/office.txt" "office"
+    fi
+    if [ "$DOWNLOAD_SET" == "clear_logs" ]; then
+      UNKNOWN_OPT="0"
+      printlog "renaming download_progress.log to download_progress_`date`.log"
+      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
+      printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
+      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
+        rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
+      else printlog "no files to clear"
+      fi
+    fi
+    if [ "$DOWNLOAD_SET" == "configure" ]; then
+      UNKNOWN_OPT="0"
+      echo "Please enter the path to the folder you would like your new downloads to be dropped off:"
+      read DOWNLOAD_DIRECTORY
+      export DOWNLOAD_DIRECTORY
+    fi
+    if [ "$DOWNLOAD_SET" == "help" ]; then
+      UNKNOWN_OPT="0"
+      echo "Usage: pdu.sh -i [USER'S INITIALS]... -s [DOWNLOAD SET]... -c -h"
+      echo "  -h, --help 			prints this help message"
+      echo "  -i, --initials       Specifies initials to be appended to file names"
+      echo "  -s, --set 			allows you to choose from a predefined set of downloads"
+      echo "  -c, --configure 		walks you through the configuration process"
+      echo "  -r, --reset 			resets all logs"
+      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
+      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+    fi
+    if [ "$DOWNLOAD_SET" == "exit" ]; then
+      UNKNOWN_OPT="0"
+      printlog "Goodbye!"
+      DOWNLOAD_SET="exit"
+    fi
+    if [ "$UNKNOWN_OPT" == "1" ] ; then
+    echo "I beg your pardon?"
+    fi
+  done
+else
+  printlog "Downloading $DOWNLOAD_SET ..."
+  progdownload "$WORKINGDIR/support/$DOWNLOAD_SET.txt" "$DOWNLOAD_SET"
+fi
