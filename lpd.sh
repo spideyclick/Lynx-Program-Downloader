@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#  This is a test
+
 ###CLEAR VARIABLES
 DOWNLOAD_SET=""
 DOWNLOADER=""
