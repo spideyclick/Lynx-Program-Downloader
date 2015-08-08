@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-#  This is a test
-
 ###CLEAR VARIABLES
 DOWNLOAD_SET=""
 DOWNLOADER=""
@@ -33,70 +31,46 @@ printlog () {
   }
 
 ###OPTIONS PROCESSING
-SKIP_ARG="0"
-for ARG ; do
-  if [ -n != "$ARG" ] ; then
-    UNKNOWN_OPT="1"
-    if [ "$SKIP_ARG" == "1" ] ; then
-      SKIP_ARG="0"
-      UNKNOWN_OPT="0"
-    fi
-    if [ "$ARG" == "-h" ] || [ "$ARG" == "--help" ] ; then
-      echo "Usage: pdu.sh -i [USER'S INITIALS]... -s [DOWNLOAD SET]... -c -h"
-      echo "  -h, --help 			prints this help message"
-      echo "  -i, --initials       Specifies initials to be appended to file names"
-      echo "  -s, --set 			allows you to choose from a predefined set of downloads"
-      echo "  -c, --configure 		walks you through the configuration process"
-      echo "  -r, --reset 			resets all logs"
-      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
-      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
-      return 0
-    fi
-    if [ "$ARG" == "-c" ] || [ "$ARG" == "--configure" ] ; then
-      echo "Please enter the path to the folder you would like your new downloads to be dropped off:"
-      read DOWNLOAD_DIRECTORY
-      UNKNOWN_OPT="0"
-      shift
-    fi
-    if [ "$ARG" == "-i" ] || [ "$ARG" == "--initials" ] ; then
-      if [ -z "$2" ] ; then
-        echo "Please specify initials to be placed on downloads" && return 1
-      else
-        DOWNLOADER="$2"
-        echo "$DOWNLOADER will be appended to filenames."
-        UNKNOWN_OPT="0"
-        SKIP_ARG="1"
-      fi
-    fi
-    if [ "$ARG" == "-s" ] || [ "$ARG" == "--set" ] ; then
-      if [ -z "$2" ] ; then
-	echo "Please specify set to download" && return 1
-      else
-        echo "Downloading $2..."
-        DOWNLOAD_SET="$2"
-        UNKNOWN_OPT="0"
-        SKIP_ARG="1"
-      fi
-    fi
-    if [ "$ARG" == "-r" ] || [ "$ARG" == "--reset" ] ; then
-      UNKNOWN_OPT="0"
-      printlog "renaming download_progress.log to download_progress_`date`.log"
-      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
-      printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
-      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
-        rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
-      else printlog "no files to clear"
-      fi
-    fi
-    if [ "$ARG" == "-t" ] || [ "$ARG" == "--test" ] ; then
-      echo "Test mode!"
-      TEST="1"
-      UNKNOWN_OPT="0"
-    fi
-    if [ "$UNKNOWN_OPT" == "1" ] ; then
-      echo "unkown option!" && return 1
-    fi
-  fi
+while getopts hrtc:i:s: OPT ; do
+  case $OPT in
+		h)
+			echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
+			echo "  -h		prints this help message and exit"
+			echo "  -i		Specify initials to be appended to file names"
+			echo "  -s		Choose from a predefined set of downloads"
+			echo "  -c		Configure download directory to place new downloads in"
+			echo "  -r		resets all logs"
+			echo ""
+			echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
+			echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+			exit 0
+		;;
+		r)
+			printlog "renaming download_progress.log to download_progress_`date`.log"
+			mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
+			printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
+			if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
+			rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
+			else printlog "no files to clear"
+			fi
+		;;
+		t)
+			printlog "Test mode: relax and enjoy."
+			TEST="1"
+		;;
+		c)
+			DOWNLOAD_DIRECTORY="$OPTARG"
+			printlog "Downloading to $DOWNLOAD_DIRECTORY."
+		;;
+		i)
+			DOWNLOADER="$OPTARG."
+			printlog "$DOWNLOADER will be appended to filenames."
+		;;
+		s)
+			DOWNLOAD_SET="$OPTARG"
+			printlog "Downloading $2..."
+		;;
+  esac
 done
 
 ###FUNCTIONS
@@ -127,7 +101,6 @@ depcheck () {
     elif [ "$PKGMAN" == "rpm" ] ; then
       printlog "yum install $1"
       INSACTN="yum"
-      
     else printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" && return 1
     fi
     printlog "Or we can try to install it right now.  Would you like to? (Y/N)"
@@ -258,18 +231,18 @@ if [ -z $DOWNLOAD_SET ] ; then
       UNKNOWN_OPT="0"
       echo "Please enter the path to the folder you would like your new downloads to be dropped off:"
       read DOWNLOAD_DIRECTORY
-      export DOWNLOAD_DIRECTORY
     fi
     if [ "$DOWNLOAD_SET" == "help" ]; then
       UNKNOWN_OPT="0"
-      echo "Usage: pdu.sh -i [USER'S INITIALS]... -s [DOWNLOAD SET]... -c -h"
-      echo "  -h, --help 			prints this help message"
-      echo "  -i, --initials       Specifies initials to be appended to file names"
-      echo "  -s, --set 			allows you to choose from a predefined set of downloads"
-      echo "  -c, --configure 		walks you through the configuration process"
-      echo "  -r, --reset 			resets all logs"
-      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
-      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+			echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
+			echo "  -h		prints this help message and exit"
+			echo "  -i		Specify initials to be appended to file names"
+			echo "  -s		Choose from a predefined set of downloads"
+			echo "  -c		Configure download directory to place new downloads in"
+			echo "  -r		resets all logs"
+			echo ""
+			echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
+			echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
     fi
     if [ "$DOWNLOAD_SET" == "exit" ]; then
       UNKNOWN_OPT="0"
