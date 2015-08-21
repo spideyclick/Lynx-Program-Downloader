@@ -15,6 +15,7 @@ DOWNLOAD_DATE="`date +%Y-%m`"
 WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ###CONFIGURATION
+CONFIG_FILE="$WORKINGDIR/support/program_list.csv"
 DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads"
 mkdir $DOWNLOAD_DIRECTORY
 mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE
@@ -22,11 +23,12 @@ LOGFILE="$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log"
 touch $LOGFILE
 
 printlog () {
-  echo $1
   if [ "$2" == "failed" ] ; then
     echo "FAIL:  $1" >> $LOGFILE
+    echo "FAIL:  $1"
   else
     echo $1 >> $LOGFILE
+    echo $1
   fi
   }
 
@@ -86,7 +88,7 @@ pckmgrchk () {
     printlog "Package Manager: $PKGMAN"
   fi
   if [ -z "$PKGMAN" ] ; then
-    printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" && return 1
+    printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" "failed" && return 1
   fi
   }
 
@@ -94,14 +96,14 @@ pckmgrchk () {
 depcheck () {
   which "$1" >> /dev/null
   if [ "$?" != "0" ] ; then
-    printlog "This program requires $1 to be installed in order to run properly.  You can install it by typing:"
+    printlog "This program requires $1 to be installed in order to run properly.  You can install it by typing:" "failed"
     if [ "$PKGMAN" == "apt" ] ; then
       printlog "sudo apt-get install $1"
       INSACTN="apt-get"
     elif [ "$PKGMAN" == "rpm" ] ; then
       printlog "yum install $1"
       INSACTN="yum"
-    else printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" && return 1
+    else printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" "failed" && return 1
     fi
     printlog "Or we can try to install it right now.  Would you like to? (Y/N)"
     UINPUT=0
@@ -112,12 +114,43 @@ depcheck () {
         sudo $INSACTN install $1
 	UINPUT="exit"
       elif [ $UINPUT == "N" ] || [ $UINPUT == "n" ] || [ $UINPUT == "no" ] || [ $UINPUT == "No" ] || [ $UINPUT == "NO" ] ; then
-	    printlog "Package install cancelled." && return 0
+	    printlog "Package install cancelled." "failed" && return 0
       else echo "I beg your pardon?"
       fi
     done
   else printlog "Dependency check of $1 success"
   fi }
+
+db () {
+# $CONFIG_FILE is assumed to exist!
+# This function searches for the beginnig of a line (program name, must be first!) then replaces the specified field of the line it is found on.
+# This function alone is the reason that 64 MUST be placed BEFORE the program title in the config file.
+  if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$1" == "-help" ] ; then
+    echo "db:  a function for requesting or modifying information from csv files."
+    echo "Usage: filemod PROGRAM_NAME FIELD_NUMBER VALUE(opt)"
+    echo "filemod (program name) (column number) (new value)"
+    echo "filemod PuTTY 1 PUT #This renames the first column (name) of PuTTY to PUT."
+    echo "filemod PuTTY 2 #This requests the category of an entry."
+    echo "filemod PuTTY 0 #This requests the line number of an entry."
+    return 0
+  fi
+#   "searching $CONFIG_FILE for $1..."
+  CURLINE=$(cat "$CONFIG_FILE" | grep -i -n "^$1" | sed 0,/\:/{s/\:/\>/})
+  if [ -z "$CURLINE" ] ; then printlog "Entry not found in config!" "failed" ; fi
+  IFS='>' read -a CURLINE <<< "$CURLINE"
+  if [ -z != $3 ] ; then
+    CURLINE[$2]=$3
+    printlog "new value: ${CURLINE[$2]}"
+    NEWLINE="${CURLINE[1]}>${CURLINE[2]}>${CURLINE[3]}>${CURLINE[4]}>${CURLINE[5]}>${CURLINE[6]}"
+    sed -i ${CURLINE[0]}s~.*~"$NEWLINE"~ "$CONFIG_FILE"
+  elif [ -z != $2 ] ; then
+    echo "${CURLINE[$2]}"
+  fi
+  }
+
+# db PuTTY 3 utilities
+
+# if [ "$TEST" == "1" ] ; then exit 0 ; fi
 
 progupdatechk () {
   if [ -f "$2" ] ; then
@@ -126,17 +159,20 @@ progupdatechk () {
   else
     printlog "Moving $1 to $2..."
     mv "$1" "$2"
+    db $PROGRAM_NAME 2 $NOW
   fi
   }
 
 progdownload () {
-  mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$2"
-  NOW=$(date +"%Y_%m_%d") && printlog "$DOWNLOAD_SET started at $NOW"
+  printlog "Downloading $DOWNLOAD_SET ..."
+  mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET"
+  NOW=$(date +"%Y_%m_%d") && printlog "$DOWNLOAD_SET started on $NOW"
   MYNUM="0"
-  until [ "$URL" == "exit" ] ; do
+  DOWNLOAD_LIST=`cat $CONFIG_FILE | grep ">$DOWNLOAD_SET>" | cut -d \> -f 1`
+  for PROGRAM_NAME in $DOWNLOAD_LIST ; do
     echo "" >> $LOGFILE
     MYNUM=$((MYNUM + 1))
-    URL="$(sed ''$MYNUM'q;d' $1)" && printlog "$MYNUM) downloading $URL"
+    URL=`db $PROGRAM_NAME 4` && printlog "$MYNUM) downloading $URL"
     mkdir "$WORKINGDIR/tmp" 2> /dev/null 
     cd "$WORKINGDIR/tmp"
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
@@ -190,32 +226,18 @@ if [ -z $DOWNLOAD_SET ] ; then
     read DOWNLOAD_SET
     if [ "$DOWNLOAD_SET" == "all" ] ; then
       UNKNOWN_OPT="0"
-      printlog "Downloading $DOWNLOAD_SET ..."
-      progdownload "$WORKINGDIR/wgetadrs.txt" "unsorted"
-      progdownload "$WORKINGDIR/support/antivirus.txt" "antivirus"
-      progdownload "$WORKINGDIR/support/creative.txt" "creative"
-      progdownload "$WORKINGDIR/support/utilities.txt" "utilities"
-      progdownload "$WORKINGDIR/support/office.txt" "office"
+      DOWNLOAD_SET="antivirus"
+      progdownload
+      DOWNLOAD_SET="creative"
+      progdownload
+      DOWNLOAD_SET="utilities"
+      progdownload
+      DOWNLOAD_SET="office"
+      progdownload
     fi
-    if [ "$DOWNLOAD_SET" == "antivirus" ]; then
+    if [ "$DOWNLOAD_SET" == "antivirus" ] || [ "$DOWNLOAD_SET" == "creative" ] || [ "$DOWNLOAD_SET" == "utilities" ] || [ "$DOWNLOAD_SET" == "office" ] ; then
       UNKNOWN_OPT="0"
-      printlog "Downloading $DOWNLOAD_SET ..."
-      progdownload "$WORKINGDIR/support/antivirus.txt" "antivirus"
-    fi
-    if [ "$DOWNLOAD_SET" == "creative" ]; then
-      UNKNOWN_OPT="0"
-      printlog "Downloading $DOWNLOAD_SET ..."
-      progdownload "$WORKINGDIR/support/creative.txt" "creative"
-    fi
-    if [ "$DOWNLOAD_SET" == "utilities" ]; then
-      UNKNOWN_OPT="0"
-      printlog "Downloading $DOWNLOAD_SET ..."
-      progdownload "$WORKINGDIR/support/utilities.txt" "utilities"
-    fi
-    if [ "$DOWNLOAD_SET" == "office" ]; then
-      UNKNOWN_OPT="0"
-      printlog "Downloading $DOWNLOAD_SET ..."
-      progdownload "$WORKINGDIR/support/office.txt" "office"
+      progdownload
     fi
     if [ "$DOWNLOAD_SET" == "clear_logs" ]; then
       UNKNOWN_OPT="0"
@@ -254,6 +276,5 @@ if [ -z $DOWNLOAD_SET ] ; then
     fi
   done
 else
-  printlog "Downloading $DOWNLOAD_SET ..."
   progdownload "$WORKINGDIR/support/$DOWNLOAD_SET.txt" "$DOWNLOAD_SET"
 fi
