@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# badfiles not being removed.
+# Need to handle -s option that does not exist!
+
 ###CLEAR VARIABLES
 DOWNLOAD_SET=""
 DOWNLOADER=""
@@ -39,51 +42,51 @@ printlog () {
 ###OPTIONS PROCESSING
 while getopts hrtfc:i:s: OPT ; do
   case $OPT in
-		h)
-			echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
-			echo "  -h		prints this help message and exit"
-			echo "  -r		resets all logs"
-			echo "  -f		force downloading of programs already downloaded this month"
-			echo "  -c		Configure download directory to place new downloads in"
-			echo "  -i		Specify initials to be appended to file names"
-			echo "  -s		Choose from a predefined set of downloads"
-			echo ""
-			echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
-			echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
-			echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
-			echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
-			echo "If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
-			exit 0
-		;;
-		r)
-			printlog "renaming download_progress.log to download_progress_`date`.log"
-			mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
-			printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
-			if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
-			rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
-			else printlog "no files to clear"
-			fi
-		;;
-		t)
-			printlog "Test mode: relax and enjoy."
-			TEST="1"
-		;;
-		c)
-			DOWNLOAD_DIRECTORY="$OPTARG"
-			printlog "Downloading to $DOWNLOAD_DIRECTORY."
-		;;
-		i)
-			DOWNLOADER="$OPTARG."
-			printlog "$DOWNLOADER will be appended to filenames."
-		;;
-		s)
-			DOWNLOAD_SET="$OPTARG"
-			printlog "Downloading $2..."
-		;;
-		f)
-			FORCE_DOWNLOADS="on"
-            printlog "Toggle force programs downloaded this month to be downloaded again: $FORCE_DOWNLOADS"
-		;;
+    h)
+      echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
+      echo "  -h    prints this help message and exit"
+      echo "  -r    resets all logs"
+      echo "  -f    force downloading of programs already downloaded this month"
+      echo "  -c    Configure download directory to place new downloads in"
+      echo "  -i    Specify initials to be appended to file names"
+      echo "  -s    Choose from a predefined set of downloads"
+      echo ""
+      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
+      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+      echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
+      echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
+      echo "If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
+      exit 0
+    ;;
+    r)
+      printlog "renaming download_progress.log to download_progress_`date`.log"
+      mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
+      printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
+      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
+      rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
+      else printlog "no files to clear"
+      fi
+    ;;
+    t)
+      printlog "Test mode: relax and enjoy."
+      TEST="1"
+    ;;
+    c)
+      DOWNLOAD_DIRECTORY="$OPTARG"
+      printlog "Downloading to $DOWNLOAD_DIRECTORY."
+    ;;
+    i)
+      DOWNLOADER="$OPTARG."
+      printlog "$DOWNLOADER will be appended to filenames."
+    ;;
+    s)
+      DOWNLOAD_SET="$OPTARG"
+      printlog "Downloading $2..."
+    ;;
+    f)
+      FORCE_DOWNLOADS="on"
+      printlog "Toggle force programs downloaded this month to be downloaded again: $FORCE_DOWNLOADS"
+    ;;
   esac
 done
 
@@ -103,7 +106,6 @@ pckmgrchk () {
     printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" "failed" && return 1
   fi
   }
-
 
 depcheck () {
   which "$1" >> /dev/null
@@ -158,7 +160,14 @@ db () {
   fi
   }
 
-# db PuTTY 3 utilities
+progdownload () {
+  if echo "$URL" | grep -q "http://www.majorgeeks.com/" ; then
+    lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
+#   elif echo "$URL" | grep -q "http://www.sourceforge.net" ; then
+#     lynx -cmd_script="$WORKINGDIR/support/sfcmd.txt" --accept-all-cookies $URL
+  else wget $URL
+  fi
+  }
 
 progupdatechk () {
   OLD_FILE_NAME=`db $PROGRAM_NAME 4`
@@ -181,14 +190,14 @@ progupdatechk () {
   fi
   }
 
-progdownload () {
+progprocess () {
   printlog "Downloading $DOWNLOAD_SET ..."
   mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET"
   NOW=$(date +"%Y_%m_%d") && printlog "$DOWNLOAD_SET started on $NOW"
   MYNUM="0"
   DOWNLOAD_LIST=`cat $CONFIG_FILE | grep ">$DOWNLOAD_SET>" | cut -d \> -f 1`
   for PROGRAM_NAME in $DOWNLOAD_LIST ; do
-    echo "" >> $LOGFILE
+    printlog ""
     IFS='-' read -a LAST_DOWNLOAD_MONTH <<< `db $PROGRAM_NAME 3` ; LAST_DOWNLOAD_MONTH="${LAST_DOWNLOAD_MONTH[0]}-${LAST_DOWNLOAD_MONTH[1]}"
     if [[ $FORCE_DOWNLOADS == 'off' && ( $LAST_DOWNLOAD_MONTH == $DOWNLOAD_DATE ) ]] ; then
       printlog "$PROGRAM_NAME has already been downloaded this month. Skipping..."
@@ -197,7 +206,7 @@ progdownload () {
       URL=`db $PROGRAM_NAME 6` && printlog "$MYNUM) downloading $URL"
       mkdir "$WORKINGDIR/tmp" 2> /dev/null 
       cd "$WORKINGDIR/tmp"
-      lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
+      progdownload
       FILE=`(ls | head -n 1)`
       if [ -z "$FILE" ] ; then
         printlog "Download incomplete: $URL" "failed"
@@ -247,17 +256,17 @@ if [ -z $DOWNLOAD_SET ] ; then
     if [ "$DOWNLOAD_SET" == "all" ] ; then
       UNKNOWN_OPT="0"
       DOWNLOAD_SET="antivirus"
-      progdownload
+      progprocess
       DOWNLOAD_SET="creative"
-      progdownload
+      progprocess
       DOWNLOAD_SET="utilities"
-      progdownload
+      progprocess
       DOWNLOAD_SET="office"
-      progdownload
+      progprocess
     fi
     if [ "$DOWNLOAD_SET" == "antivirus" ] || [ "$DOWNLOAD_SET" == "creative" ] || [ "$DOWNLOAD_SET" == "utilities" ] || [ "$DOWNLOAD_SET" == "office" ] ; then
       UNKNOWN_OPT="0"
-      progdownload
+      progprocess
     fi
     if [ "$DOWNLOAD_SET" == "clear_logs" ]; then
       UNKNOWN_OPT="0"
@@ -308,5 +317,5 @@ if [ -z $DOWNLOAD_SET ] ; then
     fi
   done
 else
-  progdownload "$WORKINGDIR/support/$DOWNLOAD_SET.txt" "$DOWNLOAD_SET"
+  progprocess "$WORKINGDIR/support/$DOWNLOAD_SET.txt" "$DOWNLOAD_SET"
 fi
