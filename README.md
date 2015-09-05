@@ -17,3 +17,17 @@ Right now, the program just works with majorgeeks.com.  But any site that is usa
 I am working on an update tracking system so you will know if your download is different from the last one using MD5 hashes and a CSV database.  I also have support for plain wget URL's in the works--see the v1 branch for some of the most recent changes.  I don't consider this to be in a 1.0 release until those features are working.
 
 If you want to keep regular, monthly, organized downloads, give this script a try!  On a server, you sould be able to schedule it as a CRON job with no user input using the -s option.
+
+If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script.
+
+If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script.
+
+Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]
+  -h            prints this help message and exit
+  -i            Specify initials to be appended to file names
+  -s            Choose from a predefined set of downloads
+  -c            Configure download directory to place new downloads in
+  -r            resets all logs
+
+Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser.
+Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget.
