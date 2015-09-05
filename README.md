@@ -23,10 +23,15 @@ If you would like to save where the downloads go by default, you can change the 
 If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script.
 
 Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]
+
   -h            prints this help message and exit
+
   -i            Specify initials to be appended to file names
+
   -s            Choose from a predefined set of downloads
+
   -c            Configure download directory to place new downloads in
+
   -r            resets all logs
 
 Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser.
