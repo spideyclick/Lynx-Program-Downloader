@@ -138,7 +138,7 @@ depcheck () {
 db () {
 # This function alone is the reason that 64 MUST be placed BEFORE the program title in the config file.
   if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$1" == "-help" ] ; then
-    echo "db:  a function for requesting or modifying information from csv files. Assumes $CONFIG_FILE Exists."
+    echo "db:  a function for requesting or modifying information from csv files. Assumes \$CONFIG_FILE Exists."
     echo "Usage: filemod PROGRAM_NAME FIELD_NUMBER VALUE(opt)"
     echo "filemod (program name) (column number) (new value)"
     echo "filemod PuTTY 1 PUT #This renames the first column (name) of PuTTY to PUT."
@@ -146,21 +146,28 @@ db () {
     echo "filemod PuTTY 0 #This requests the line number of an entry."
     return 0
   fi
-#   "searching $CONFIG_FILE for $1..."
   CURLINE=$(cat "$CONFIG_FILE" | grep -i -n "^$1" | sed 0,/\:/{s/\:/\>/})
   if [ -z "$CURLINE" ] ; then printlog "Entry not found in config!" "failed" ; fi
   IFS='>' read -a CURLINE <<< "$CURLINE"
   if [ -z != $3 ] ; then
     CURLINE[$2]=$3
     printlog "new value: ${CURLINE[$2]}"
-    NEWLINE="${CURLINE[1]}>${CURLINE[2]}>${CURLINE[3]}>${CURLINE[4]}>${CURLINE[5]}>${CURLINE[6]}>${CURLINE[7]}"
+    NEWLINE=""
+    COL_NUM=0
+    for column in ${CURLINE[@]} ; do
+      COL_NUM=$((COL_NUM + 1))
+      NEWLINE="$NEWLINE${CURLINE[$COL_NUM]}>"
+    done
     sed -i ${CURLINE[0]}s~.*~"$NEWLINE"~ "$CONFIG_FILE"
   elif [ -z != $2 ] ; then
-    echo "${CURLINE[$2]}"
+    if [ "${CURLINE[$2]}" == "" ] ; then echo "field empty"
+    else echo "${CURLINE[$2]}"
+    fi
   fi
   }
 
 progdownload () {
+  printlog "attmpting download from $URL"
   if echo "$URL" | grep -q "http://www.majorgeeks.com/" ; then
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
 #   elif echo "$URL" | grep -q "http://www.sourceforge.net" ; then
@@ -199,30 +206,42 @@ progprocess () {
   for PROGRAM_NAME in $DOWNLOAD_LIST ; do
     printlog ""
     IFS='-' read -a LAST_DOWNLOAD_MONTH <<< `db $PROGRAM_NAME 3` ; LAST_DOWNLOAD_MONTH="${LAST_DOWNLOAD_MONTH[0]}-${LAST_DOWNLOAD_MONTH[1]}"
-    if [[ $FORCE_DOWNLOADS == 'off' && ( $LAST_DOWNLOAD_MONTH == $DOWNLOAD_DATE ) ]] ; then
+    if [[ $FORCE_DOWNLOADS == "off" && ( $LAST_DOWNLOAD_MONTH == $DOWNLOAD_DATE ) ]] ; then
       printlog "$PROGRAM_NAME has already been downloaded this month. Skipping..."
     else
       MYNUM=$((MYNUM + 1))
-      URL=`db $PROGRAM_NAME 6` && printlog "$MYNUM) downloading $URL"
-      mkdir "$WORKINGDIR/tmp" 2> /dev/null 
+      printlog "$MYNUM) downloading $PROGRAM_NAME"
+      mkdir "$WORKINGDIR/tmp" 2> /dev/null
       cd "$WORKINGDIR/tmp"
-      progdownload
-      FILE=`(ls | head -n 1)`
-      if [ -z "$FILE" ] ; then
-        printlog "Download incomplete: $URL" "failed"
-      else
-        EXT=`echo -n $FILE | tail -c 3`
-        BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
-        until [ -z "$FILE" ] ; do
-          if [ $BAD == "0" ] ; then
-            mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
-            printlog "Download $FILE is of unknown type. $URL" "failed"
-          else
-            progupdatechk
-          fi
+      TRY=1
+      URLNUM=5
+      while [ $TRY == 1 ] ; do
+        URLNUM=$((URLNUM + 1))
+        URL=`db $PROGRAM_NAME $URLNUM`
+        if [ "$URL" == "field empty" ] ; then
+          TRY=0
+          printlog "Out of mirrors! No suitable download found for $PROGRAM_NAME..." "failed"
+        else
+          progdownload
           FILE=`(ls | head -n 1)`
-        done
-      fi
+          if [ -z "$FILE" ] ; then
+            printlog "Download incomplete: $URL" "failed"
+          else
+            EXT=`echo -n $FILE | tail -c 3`
+            BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
+            until [ -z "$FILE" ] ; do
+              if [ $BAD == "0" ] ; then
+                mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
+                printlog "Download $FILE is of unknown type. $URL" "failed"
+              else
+                TRY=0
+                progupdatechk
+              fi
+              FILE=`(ls | head -n 1)`
+            done
+          fi
+        fi
+      done
       cd "$WORKINGDIR"
     fi
   done
