@@ -1,8 +1,0 @@
-http://www.majorgeeks.com/mg/get/krita_studio,1.html
-http://www.majorgeeks.com/mg/get/krita_studio,2.html
-http://www.majorgeeks.com/mg/get/blender,1.html
-http://www.majorgeeks.com/mg/get/blender,2.html
-http://www.majorgeeks.com/mg/getmirror/the_gimp,1.html
-http://www.majorgeeks.com/mg/getmirror/inkscape,1.html
-http://www.majorgeeks.com/mg/get/paint_net,1.html
-exit

@@ -4,11 +4,12 @@
 DOWNLOAD_SET=""
 DOWNLOADER=""
 PKGMAN=""
+DOWNLOAD_SELECTION=""
+UNKNOWN_OPT=""
+
 TEST="0"
 # !!!TEST copy this line wherever you need the script to stop in a test
 if [ "$TEST" == "1" ] ; then return 0 ; fi
-DOWNLOAD_SELECTION=""
-UNKNOWN_OPT=""
 
 ###SET VARIABLES
 DOWNLOAD_DATE="`date +%Y-%m`"
@@ -17,10 +18,12 @@ WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 ###CONFIGURATION
 CONFIG_FILE="$WORKINGDIR/support/program_list.csv"
 DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads"
+MIN_NEW_DOWNLOAD_DAYS="7"
 mkdir $DOWNLOAD_DIRECTORY
 mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE
 LOGFILE="$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log"
 touch $LOGFILE
+
 
 printlog () {
   if [ "$2" == "failed" ] ; then
@@ -45,6 +48,8 @@ while getopts hrtc:i:s: OPT ; do
 			echo ""
 			echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
 			echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+			echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
+			echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
 			exit 0
 		;;
 		r)
@@ -141,7 +146,7 @@ db () {
   if [ -z != $3 ] ; then
     CURLINE[$2]=$3
     printlog "new value: ${CURLINE[$2]}"
-    NEWLINE="${CURLINE[1]}>${CURLINE[2]}>${CURLINE[3]}>${CURLINE[4]}>${CURLINE[5]}>${CURLINE[6]}"
+    NEWLINE="${CURLINE[1]}>${CURLINE[2]}>${CURLINE[3]}>${CURLINE[4]}>${CURLINE[5]}>${CURLINE[6]}>${CURLINE[7]}"
     sed -i ${CURLINE[0]}s~.*~"$NEWLINE"~ "$CONFIG_FILE"
   elif [ -z != $2 ] ; then
     echo "${CURLINE[$2]}"
@@ -150,16 +155,25 @@ db () {
 
 # db PuTTY 3 utilities
 
-# if [ "$TEST" == "1" ] ; then exit 0 ; fi
-
 progupdatechk () {
-  if [ -f "$2" ] ; then
-    printlog "File already in download directory!  Deleting new file and skipping..."
-    rm -f $1
+  IFS='-' read -a LAST_DOWNLOAD_MONTH <<< `db $PROGRAM_NAME 3` ; LAST_DOWNLOAD_MONTH="${LAST_DOWNLOAD_MONTH[0]}_${LAST_DOWNLOAD_MONTH[1]}"
+  OLD_FILE_NAME=`db $PROGRAM_NAME 4`
+  MD5_OLD=`db $PROGRAM_NAME 5`
+  IFS=' ' read -a MD5_NEW <<< `md5sum $FILE`
+  MD5_NEW=${MD5_NEW[0]}
+  if [ "$MD5_NEW" == "$MD5_OLD" ] ; then
+    printlog "File has not changed since last download.  Deleting and moving old file to new download directory..."
+    rm -f $FILE
+    mv "$DOWNLOAD_DIRECTORY/$LAST_DOWNLOAD_MONTH/$DOWNLOAD_SET/$OLD_FILE_NAME" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$OLD_FILE_NAME"
+    db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
   else
-    printlog "Moving $1 to $2..."
-    mv "$1" "$2"
-    db $PROGRAM_NAME 2 $NOW
+    printlog "File is new! Moving to download folder..."
+    if [ -z != $DOWNLOADER ] ; then NEW_FILE="${FILE%%.*}($DOWNLOADER).${FILE#*.}" ; fi
+    mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$FILE"
+    db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
+    db "$PROGRAM_NAME" 4 "$FILE"
+    db "$PROGRAM_NAME" 5 "$MD5_NEW"
+    printlog "Download success of $FILE from $URL"
   fi
   }
 
@@ -172,7 +186,7 @@ progdownload () {
   for PROGRAM_NAME in $DOWNLOAD_LIST ; do
     echo "" >> $LOGFILE
     MYNUM=$((MYNUM + 1))
-    URL=`db $PROGRAM_NAME 4` && printlog "$MYNUM) downloading $URL"
+    URL=`db $PROGRAM_NAME 6` && printlog "$MYNUM) downloading $URL"
     mkdir "$WORKINGDIR/tmp" 2> /dev/null 
     cd "$WORKINGDIR/tmp"
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
@@ -184,15 +198,10 @@ progdownload () {
       BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
       until [ -z "$FILE" ] ; do
         if [ $BAD == "0" ] ; then
-          progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
+          mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
           printlog "Download $FILE is of unknown type. $URL" "failed"
         else
-          if [ -z $DOWNLOADER ] ; then
-            progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$FILE"
-          else
-            progupdatechk "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/${FILE%%.*}($DOWNLOADER).${FILE#*.}"
-          fi
-          printlog "Download success of $FILE from $URL"
+          progupdatechk
         fi
         FILE=`(ls | head -n 1)`
       done
@@ -210,6 +219,7 @@ printlog "lpd started at `date`"
 pckmgrchk
 depcheck wget
 depcheck lynx
+depcheck md5sum
 
 ###MENU
 mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`"
@@ -256,16 +266,18 @@ if [ -z $DOWNLOAD_SET ] ; then
     fi
     if [ "$DOWNLOAD_SET" == "help" ]; then
       UNKNOWN_OPT="0"
-			echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
-			echo "  -h		prints this help message and exit"
-			echo "  -i		Specify initials to be appended to file names"
-			echo "  -s		Choose from a predefined set of downloads"
-			echo "  -c		Configure download directory to place new downloads in"
-			echo "  -r		resets all logs"
-			echo ""
-			echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
-			echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
-    fi
+	  echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
+	  echo "  -h		prints this help message and exit"
+	  echo "  -i		Specify initials to be appended to file names"
+	  echo "  -s		Choose from a predefined set of downloads"
+	  echo "  -c		Configure download directory to place new downloads in"
+	  echo "  -r		resets all logs"
+	  echo ""
+	  echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
+	  echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+	  echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
+	  echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
+	fi
     if [ "$DOWNLOAD_SET" == "exit" ]; then
       UNKNOWN_OPT="0"
       printlog "Goodbye!"
