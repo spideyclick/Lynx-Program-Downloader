@@ -16,6 +16,7 @@ DOWNLOAD_DATE="`date +%Y-%m`"
 WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ###CONFIGURATION
+FORCE_DOWNLOADS="off"
 CONFIG_FILE="$WORKINGDIR/support/program_list.csv"
 DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads"
 MIN_NEW_DOWNLOAD_DAYS="7"
@@ -36,20 +37,22 @@ printlog () {
   }
 
 ###OPTIONS PROCESSING
-while getopts hrtc:i:s: OPT ; do
+while getopts hrtfc:i:s: OPT ; do
   case $OPT in
 		h)
 			echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
 			echo "  -h		prints this help message and exit"
+			echo "  -r		resets all logs"
+			echo "  -f		force downloading of programs already downloaded this month"
+			echo "  -c		Configure download directory to place new downloads in"
 			echo "  -i		Specify initials to be appended to file names"
 			echo "  -s		Choose from a predefined set of downloads"
-			echo "  -c		Configure download directory to place new downloads in"
-			echo "  -r		resets all logs"
 			echo ""
 			echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
 			echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
 			echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
 			echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
+			echo "If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
 			exit 0
 		;;
 		r)
@@ -76,6 +79,10 @@ while getopts hrtc:i:s: OPT ; do
 		s)
 			DOWNLOAD_SET="$OPTARG"
 			printlog "Downloading $2..."
+		;;
+		f)
+			FORCE_DOWNLOADS="on"
+            printlog "Toggle force programs downloaded this month to be downloaded again: $FORCE_DOWNLOADS"
 		;;
   esac
 done
@@ -127,11 +134,9 @@ depcheck () {
   fi }
 
 db () {
-# $CONFIG_FILE is assumed to exist!
-# This function searches for the beginnig of a line (program name, must be first!) then replaces the specified field of the line it is found on.
 # This function alone is the reason that 64 MUST be placed BEFORE the program title in the config file.
   if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$1" == "-help" ] ; then
-    echo "db:  a function for requesting or modifying information from csv files."
+    echo "db:  a function for requesting or modifying information from csv files. Assumes $CONFIG_FILE Exists."
     echo "Usage: filemod PROGRAM_NAME FIELD_NUMBER VALUE(opt)"
     echo "filemod (program name) (column number) (new value)"
     echo "filemod PuTTY 1 PUT #This renames the first column (name) of PuTTY to PUT."
@@ -156,7 +161,6 @@ db () {
 # db PuTTY 3 utilities
 
 progupdatechk () {
-  IFS='-' read -a LAST_DOWNLOAD_MONTH <<< `db $PROGRAM_NAME 3` ; LAST_DOWNLOAD_MONTH="${LAST_DOWNLOAD_MONTH[0]}_${LAST_DOWNLOAD_MONTH[1]}"
   OLD_FILE_NAME=`db $PROGRAM_NAME 4`
   MD5_OLD=`db $PROGRAM_NAME 5`
   IFS=' ' read -a MD5_NEW <<< `md5sum $FILE`
@@ -185,28 +189,33 @@ progdownload () {
   DOWNLOAD_LIST=`cat $CONFIG_FILE | grep ">$DOWNLOAD_SET>" | cut -d \> -f 1`
   for PROGRAM_NAME in $DOWNLOAD_LIST ; do
     echo "" >> $LOGFILE
-    MYNUM=$((MYNUM + 1))
-    URL=`db $PROGRAM_NAME 6` && printlog "$MYNUM) downloading $URL"
-    mkdir "$WORKINGDIR/tmp" 2> /dev/null 
-    cd "$WORKINGDIR/tmp"
-    lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
-    FILE=`(ls | head -n 1)`
-    if [ -z "$FILE" ] ; then
-      printlog "Download incomplete: $URL" "failed"
+    IFS='-' read -a LAST_DOWNLOAD_MONTH <<< `db $PROGRAM_NAME 3` ; LAST_DOWNLOAD_MONTH="${LAST_DOWNLOAD_MONTH[0]}-${LAST_DOWNLOAD_MONTH[1]}"
+    if [[ $FORCE_DOWNLOADS == 'off' && ( $LAST_DOWNLOAD_MONTH == $DOWNLOAD_DATE ) ]] ; then
+      printlog "$PROGRAM_NAME has already been downloaded this month. Skipping..."
     else
-      EXT=`echo -n $FILE | tail -c 3`
-      BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
-      until [ -z "$FILE" ] ; do
-        if [ $BAD == "0" ] ; then
-          mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
-          printlog "Download $FILE is of unknown type. $URL" "failed"
-        else
-          progupdatechk
-        fi
-        FILE=`(ls | head -n 1)`
-      done
+      MYNUM=$((MYNUM + 1))
+      URL=`db $PROGRAM_NAME 6` && printlog "$MYNUM) downloading $URL"
+      mkdir "$WORKINGDIR/tmp" 2> /dev/null 
+      cd "$WORKINGDIR/tmp"
+      lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
+      FILE=`(ls | head -n 1)`
+      if [ -z "$FILE" ] ; then
+        printlog "Download incomplete: $URL" "failed"
+      else
+        EXT=`echo -n $FILE | tail -c 3`
+        BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
+        until [ -z "$FILE" ] ; do
+          if [ $BAD == "0" ] ; then
+            mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
+            printlog "Download $FILE is of unknown type. $URL" "failed"
+          else
+            progupdatechk
+          fi
+          FILE=`(ls | head -n 1)`
+        done
+      fi
+      cd "$WORKINGDIR"
     fi
-    cd "$WORKINGDIR"
   done
   }
 
@@ -227,8 +236,9 @@ mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles"
 if [ -z $DOWNLOAD_SET ] ; then
   until [ "$DOWNLOAD_SET" == "exit" ] ; do
     UNKNOWN_OPT="1"
+    echo ""
     echo "Which batch would you like to download?"
-    echo "all antivirus creative utilities office clear_logs configure help exit"
+    echo "all antivirus creative utilities office clear_logs configure force help exit"
   #   DOWNLOAD_SELECTION="All Majorgeeks Wgets Antivirus Creative Utilities Office Clear_logs Configure Exit"
   #   select opt in $DOWNLOAD_SELECTION; do
   #     DOWNLOAD_SET="$opt"
@@ -266,18 +276,28 @@ if [ -z $DOWNLOAD_SET ] ; then
     fi
     if [ "$DOWNLOAD_SET" == "help" ]; then
       UNKNOWN_OPT="0"
-	  echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
-	  echo "  -h		prints this help message and exit"
-	  echo "  -i		Specify initials to be appended to file names"
-	  echo "  -s		Choose from a predefined set of downloads"
-	  echo "  -c		Configure download directory to place new downloads in"
-	  echo "  -r		resets all logs"
-	  echo ""
-	  echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
-	  echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
-	  echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
-	  echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
+      echo "Options: all antivirus creative utilities office clear_logs configure force help exit"
+      echo "  all           download all program entries"
+      echo "  clear_logs    clear the logs, rename the old ones"
+      echo "  configure     change the download directory"
+      echo "  force         toggle force downloading of programs already downloaded this month"
+      echo "  help          prints this help message and exit"
+      echo "  exit          end the program"
+      echo ""
+      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
+      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+      echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
+      echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
+      echo "If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
 	fi
+    if [ "$DOWNLOAD_SET" == "force" ]; then
+      UNKNOWN_OPT="0"
+      if [ $FORCE_DOWNLOADS == "off" ] ; then
+        FORCE_DOWNLOADS="on"
+      else FORCE_DOWNLOADS="off"
+      fi
+      printlog "Toggle force programs downloaded this month to be downloaded again: $FORCE_DOWNLOADS"
+    fi
     if [ "$DOWNLOAD_SET" == "exit" ]; then
       UNKNOWN_OPT="0"
       printlog "Goodbye!"

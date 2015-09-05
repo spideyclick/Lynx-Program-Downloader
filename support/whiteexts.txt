@@ -1,4 +1,4 @@
-#This is a file containing all the last 3-letter filename extensions that are accepted.  Anything outside of this list will cause an error
+#This is a file containing all the last 3-letter filename extensions that are accepted (html would be tml, etc).  Anything outside of this list will cause an unknown file error.
 exe
 zip
 .7z
