@@ -45,7 +45,7 @@ while getopts hrtfc:i:s: OPT ; do
     h)
       echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
       echo "  -h    prints this help message and exit"
-      echo "  -r    resets all logs"
+      echo "  -r    resets all logs, remove bad files"
       echo "  -f    force downloading of programs already downloaded this month"
       echo "  -c    Configure download directory to place new downloads in"
       echo "  -i    Specify initials to be appended to file names"
@@ -62,8 +62,8 @@ while getopts hrtfc:i:s: OPT ; do
       printlog "renaming download_progress.log to download_progress_`date`.log"
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
       printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
-      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
-      rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
+      if [ "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" != "" ] ; then
+      rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "files cleared"
       else printlog "no files to clear"
       fi
     ;;
@@ -292,8 +292,8 @@ if [ -z $DOWNLOAD_SET ] ; then
       printlog "renaming download_progress.log to download_progress_`date`.log"
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
       printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
-      if [ -n != "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" ] ; then
-        rm -f $WORKINGDIR/logs/badfiles/* && printlog "files cleared"
+      if [ "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" != "" ] ; then
+        rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "files cleared"
       else printlog "no files to clear"
       fi
     fi
@@ -306,7 +306,7 @@ if [ -z $DOWNLOAD_SET ] ; then
       UNKNOWN_OPT="0"
       echo "Options: all antivirus creative utilities office clear_logs configure force help exit"
       echo "  all           download all program entries"
-      echo "  clear_logs    clear the logs, rename the old ones"
+      echo "  clear_logs    clear the logs, rename the old ones, remove bad files"
       echo "  configure     change the download directory"
       echo "  force         toggle force downloading of programs already downloaded this month"
       echo "  help          prints this help message and exit"
