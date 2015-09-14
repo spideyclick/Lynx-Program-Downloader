@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 
-# badfiles not being removed.
-# Need to handle -s option that does not exist!
-
 ###CLEAR VARIABLES
 DOWNLOAD_SET=""
 DOWNLOADER=""
 PKGMAN=""
 DOWNLOAD_SELECTION=""
 UNKNOWN_OPT=""
+CATEGORY=""
 
 TEST="0"
 # !!!TEST copy this line wherever you need the script to stop in a test
@@ -19,43 +17,70 @@ DOWNLOAD_DATE="`date +%Y-%m`"
 WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ###CONFIGURATION
-FORCE_DOWNLOADS="off"
-CONFIG_FILE="$WORKINGDIR/support/program_list.csv"
-DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads"
-MIN_NEW_DOWNLOAD_DAYS="7"
-mkdir $DOWNLOAD_DIRECTORY
-mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE
+FORCE_DOWNLOADS="off" # set to "off" or "on"
+CONFIG_FILE="$WORKINGDIR/support/program_list.csv" # path to your CSV file, see support/program_list.csv for an example.
+DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads" # path to save downloads in
+MIN_NEW_DOWNLOAD_DAYS="7" # how many days old does a program need to be for you to want it re-downloaded?
+
+###MAKE DIRECTORIES
+mkdir $DOWNLOAD_DIRECTORY 2> /dev/null
+mkdir $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE 2> /dev/null
 LOGFILE="$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log"
 touch $LOGFILE
 
-
+###PRE-OPTION FUNCTIONS
 printlog () {
   if [ "$2" == "failed" ] ; then
-    echo "FAIL:  $1" >> $LOGFILE
-    echo "FAIL:  $1"
+    echo "FAIL: $1" >> $LOGFILE
+    echo "FAIL: $1"
   else
     echo $1 >> $LOGFILE
     echo $1
   fi
   }
 
+categoryget () {
+  DOWNLOAD_LIST=`cat support/program_list.csv | cut -d \> -f 2`
+  OLDITEM=""
+  NEWITEM=""
+  for SET in $DOWNLOAD_LIST ; do
+    if [ "$OLDITEM" != "$SET" ] ; then
+      OLDITEM="$SET"
+      NEWITEM="$NEWITEM $SET"
+    fi
+  done
+  echo "$NEWITEM"
+  }
+CATEGORIES="`categoryget`"
+
+downloadsetget () {
+  NEWITEM=""
+  for QUERY in $1 ; do
+    for CATEGORY in $CATEGORIES ; do
+      FINDINGS=`grep "$QUERY" <<< "$CATEGORY"`
+      if [ "$FINDINGS" != "" ] ; then NEWITEM="$NEWITEM $FINDINGS" ; fi
+    done
+  done
+  echo "$NEWITEM"
+  }
+
 ###OPTIONS PROCESSING
 while getopts hrtfc:i:s: OPT ; do
   case $OPT in
     h)
-      echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]"
+      echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [\"CATGORIES CATEGORIES\"] -c [DOWNLOAD DIRECTORY]"
       echo "  -h    prints this help message and exit"
       echo "  -r    resets all logs, remove bad files"
       echo "  -f    force downloading of programs already downloaded this month"
       echo "  -c    Configure download directory to place new downloads in"
       echo "  -i    Specify initials to be appended to file names"
-      echo "  -s    Choose from a predefined set of downloads"
+      echo "  -s    Choose a set of downloads according to category in the CSV file"
       echo ""
       echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
       echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
-      echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
-      echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
-      echo "If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
+      echo "If you would like to save where the downloads go by default, you can change the variable \$DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
+      echo "If you would like to save the default downloader initials, put something inside the \$DOWNLOADER variable at the beginning of the script."
+      echo "If you would like to force downloads whether done this month or not, change the \$FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
       exit 0
     ;;
     r)
@@ -80,8 +105,12 @@ while getopts hrtfc:i:s: OPT ; do
       printlog "$DOWNLOADER will be appended to filenames."
     ;;
     s)
-      DOWNLOAD_SET="$OPTARG"
-      printlog "Downloading $2..."
+      DOWNLOAD_SELECTION="$OPTARG"
+      DOWNLOAD_SET="`downloadsetget "$DOWNLOAD_SELECTION"`"
+      if [ "$DOWNLOAD_SET" == "" ] ; then
+        printlog "$DOWNLOAD_SELECTION not found in available categories for download: $CATEGORIES" "failed"
+        exit 1
+      fi
     ;;
     f)
       FORCE_DOWNLOADS="on"
@@ -92,12 +121,12 @@ done
 
 ###FUNCTIONS
 pckmgrchk () {
-  which rpm
+  which rpm >> /dev/null
   if [ "$?" == "0" ] ; then
     PKGMAN="rpm"
     printlog "Package Manager: $PKGMAN"
   fi
-  which apt
+  which apt >> /dev/null
   if [ "$?" == "0" ] ; then
     PKGMAN="apt"
     printlog "Package Manager: $PKGMAN"
@@ -184,12 +213,12 @@ progupdatechk () {
   if [ "$MD5_NEW" == "$MD5_OLD" ] ; then
     printlog "File has not changed since last download.  Deleting and moving old file to new download directory..."
     rm -f $FILE
-    mv "$DOWNLOAD_DIRECTORY/$LAST_DOWNLOAD_MONTH/$DOWNLOAD_SET/$OLD_FILE_NAME" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$OLD_FILE_NAME"
+    mv "$DOWNLOAD_DIRECTORY/$LAST_DOWNLOAD_MONTH/$CATEGORY/$OLD_FILE_NAME" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$CATEGORY/$OLD_FILE_NAME"
     db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
   else
     printlog "File is new! Moving to download folder..."
     if [ -z != $DOWNLOADER ] ; then NEW_FILE="${FILE%%.*}($DOWNLOADER).${FILE#*.}" ; fi
-    mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET/$FILE"
+    mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$CATEGORY/$FILE"
     db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
     db "$PROGRAM_NAME" 4 "$FILE"
     db "$PROGRAM_NAME" 5 "$MD5_NEW"
@@ -198,59 +227,62 @@ progupdatechk () {
   }
 
 progprocess () {
-  printlog "Downloading $DOWNLOAD_SET ..."
-  mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$DOWNLOAD_SET"
-  NOW=$(date +"%Y_%m_%d") && printlog "$DOWNLOAD_SET started on $NOW"
   MYNUM="0"
-  DOWNLOAD_LIST=`cat $CONFIG_FILE | grep ">$DOWNLOAD_SET>" | cut -d \> -f 1`
-  for PROGRAM_NAME in $DOWNLOAD_LIST ; do
-    printlog ""
-    IFS='-' read -a LAST_DOWNLOAD_MONTH <<< `db $PROGRAM_NAME 3` ; LAST_DOWNLOAD_MONTH="${LAST_DOWNLOAD_MONTH[0]}-${LAST_DOWNLOAD_MONTH[1]}"
-    if [[ $FORCE_DOWNLOADS == "off" && ( $LAST_DOWNLOAD_MONTH == $DOWNLOAD_DATE ) ]] ; then
-      printlog "$PROGRAM_NAME has already been downloaded this month. Skipping..."
-    else
-      MYNUM=$((MYNUM + 1))
-      printlog "$MYNUM) downloading $PROGRAM_NAME"
-      mkdir "$WORKINGDIR/tmp" 2> /dev/null
-      cd "$WORKINGDIR/tmp"
-      TRY=1
-      URLNUM=5
-      while [ $TRY == 1 ] ; do
-        URLNUM=$((URLNUM + 1))
-        URL=`db $PROGRAM_NAME $URLNUM`
-        if [ "$URL" == "field empty" ] ; then
-          TRY=0
-          printlog "Out of mirrors! No suitable download found for $PROGRAM_NAME..." "failed"
-        else
-          progdownload
-          FILE=`(ls | head -n 1)`
-          if [ -z "$FILE" ] ; then
-            printlog "Download incomplete: $URL" "failed"
+  for CATEGORY in $DOWNLOAD_SET ; do
+    mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$CATEGORY" 2> /dev/null
+    NOW=$(date +"%Y_%m_%d") && printlog "" && printlog "$CATEGORY started on $NOW"
+    DOWNLOAD_LIST=`cat $CONFIG_FILE | grep ">$CATEGORY>" | cut -d \> -f 1`
+    for PROGRAM_NAME in $DOWNLOAD_LIST ; do
+      printlog ""
+      IFS='-' read -a LAST_DOWNLOAD_MONTH <<< `db $PROGRAM_NAME 3` ; LAST_DOWNLOAD_MONTH="${LAST_DOWNLOAD_MONTH[0]}-${LAST_DOWNLOAD_MONTH[1]}"
+      if [[ $FORCE_DOWNLOADS == "off" && ( $LAST_DOWNLOAD_MONTH == $DOWNLOAD_DATE ) ]] ; then
+        printlog "$PROGRAM_NAME has already been downloaded this month. Skipping..."
+      else
+        MYNUM=$((MYNUM + 1))
+        printlog "$MYNUM) downloading $PROGRAM_NAME"
+        mkdir "$WORKINGDIR/tmp" 2> /dev/null
+        cd "$WORKINGDIR/tmp"
+        TRY=1
+        URLNUM=5
+        while [ $TRY == 1 ] ; do
+          URLNUM=$((URLNUM + 1))
+          URL=`db $PROGRAM_NAME $URLNUM`
+          if [ "$URL" == "field empty" ] ; then
+            TRY=0
+            printlog "Out of mirrors! No suitable download found for $PROGRAM_NAME..." "failed"
           else
-            EXT=`echo -n $FILE | tail -c 3`
-            BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
-            until [ -z "$FILE" ] ; do
-              if [ $BAD == "0" ] ; then
-                mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
-                printlog "Download $FILE is of unknown type. $URL" "failed"
-              else
-                TRY=0
-                progupdatechk
-              fi
-              FILE=`(ls | head -n 1)`
-            done
+            progdownload
+            FILE=`(ls | head -n 1)`
+            if [ -z "$FILE" ] ; then
+              printlog "Download incomplete: $URL" "failed"
+            else
+              EXT=`echo -n $FILE | tail -c 3`
+              BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
+              until [ -z "$FILE" ] ; do
+                if [ $BAD == "0" ] ; then
+                  mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
+                  printlog "Download $FILE is of unknown type. $URL" "failed"
+                else
+                  TRY=0
+                  progupdatechk
+                fi
+                FILE=`(ls | head -n 1)`
+              done
+            fi
           fi
-        fi
-      done
-      cd "$WORKINGDIR"
-    fi
+        done
+        cd "$WORKINGDIR"
+      fi
+    done
   done
   }
 
 ###PROGRAM START
 cd $WORKINGDIR
 echo "" >> $LOGFILE
+printlog ""
 printlog "lpd started at `date`"
+printlog ""
 
 ###DEPENDENCY CHECK
 pckmgrchk
@@ -259,35 +291,21 @@ depcheck lynx
 depcheck md5sum
 
 ###MENU
-mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`"
-mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles"
-if [ -z $DOWNLOAD_SET ] ; then
-  until [ "$DOWNLOAD_SET" == "exit" ] ; do
+mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`" 2> /dev/null
+mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles" 2> /dev/null
+if [ -z "$DOWNLOAD_SELECTION" ] ; then
+  while [ 1 == 1 ] ; do
     UNKNOWN_OPT="1"
     echo ""
     echo "Which batch would you like to download?"
-    echo "all antivirus creative utilities office clear_logs configure force help exit"
-  #   DOWNLOAD_SELECTION="All Majorgeeks Wgets Antivirus Creative Utilities Office Clear_logs Configure Exit"
-  #   select opt in $DOWNLOAD_SELECTION; do
-  #     DOWNLOAD_SET="$opt"
-  #   done
-    read DOWNLOAD_SET
-    if [ "$DOWNLOAD_SET" == "all" ] ; then
+    echo "all $CATEGORIES clear_logs configure force help exit"
+    read DOWNLOAD_SELECTION
+    if [ "$DOWNLOAD_SELECTION" == "all" ] ; then
       UNKNOWN_OPT="0"
-      DOWNLOAD_SET="antivirus"
-      progprocess
-      DOWNLOAD_SET="creative"
-      progprocess
-      DOWNLOAD_SET="utilities"
-      progprocess
-      DOWNLOAD_SET="office"
+      DOWNLOAD_SET="$CATEGORIES"
       progprocess
     fi
-    if [ "$DOWNLOAD_SET" == "antivirus" ] || [ "$DOWNLOAD_SET" == "creative" ] || [ "$DOWNLOAD_SET" == "utilities" ] || [ "$DOWNLOAD_SET" == "office" ] ; then
-      UNKNOWN_OPT="0"
-      progprocess
-    fi
-    if [ "$DOWNLOAD_SET" == "clear_logs" ]; then
+    if [ "$DOWNLOAD_SELECTION" == "clear_logs" ]; then
       UNKNOWN_OPT="0"
       printlog "renaming download_progress.log to download_progress_`date`.log"
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
@@ -297,13 +315,14 @@ if [ -z $DOWNLOAD_SET ] ; then
       else printlog "no files to clear"
       fi
     fi
-    if [ "$DOWNLOAD_SET" == "configure" ]; then
+    if [ "$DOWNLOAD_SELECTION" == "configure" ]; then
       UNKNOWN_OPT="0"
       echo "Please enter the path to the folder you would like your new downloads to be dropped off:"
       read DOWNLOAD_DIRECTORY
     fi
-    if [ "$DOWNLOAD_SET" == "help" ]; then
+    if [ "$DOWNLOAD_SELECTION" == "help" ]; then
       UNKNOWN_OPT="0"
+      echo ""
       echo "Options: all antivirus creative utilities office clear_logs configure force help exit"
       echo "  all           download all program entries"
       echo "  clear_logs    clear the logs, rename the old ones, remove bad files"
@@ -314,11 +333,11 @@ if [ -z $DOWNLOAD_SET ] ; then
       echo ""
       echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
       echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
-      echo "If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
-      echo "If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script."
-      echo "If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
+      echo "If you would like to save where the downloads go by default, you can change the variable \$DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
+      echo "If you would like to save the default downloader initials, put something inside the \$DOWNLOADER variable at the beginning of the script."
+      echo "If you would like to force downloads whether done this month or not, change the \$FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
 	fi
-    if [ "$DOWNLOAD_SET" == "force" ]; then
+    if [ "$DOWNLOAD_SELECTION" == "force" ]; then
       UNKNOWN_OPT="0"
       if [ $FORCE_DOWNLOADS == "off" ] ; then
         FORCE_DOWNLOADS="on"
@@ -326,15 +345,23 @@ if [ -z $DOWNLOAD_SET ] ; then
       fi
       printlog "Toggle force programs downloaded this month to be downloaded again: $FORCE_DOWNLOADS"
     fi
-    if [ "$DOWNLOAD_SET" == "exit" ]; then
+    if [ "$DOWNLOAD_SELECTION" == "exit" ]; then
       UNKNOWN_OPT="0"
-      printlog "Goodbye!"
-      DOWNLOAD_SET="exit"
+      break
     fi
     if [ "$UNKNOWN_OPT" == "1" ] ; then
-    echo "I beg your pardon?"
+      DOWNLOAD_SET=`downloadsetget "$DOWNLOAD_SELECTION"`
+      if [ -z "$DOWNLOAD_SET" ] ; then
+        printlog "$DOWNLOAD_SELECTION not found in available categories for download: $CATEGORIES" "failed"
+      else
+        printlog "Downloading: $DOWNLOAD_SET"
+        progprocess
+      fi
     fi
   done
 else
-  progprocess "$WORKINGDIR/support/$DOWNLOAD_SET.txt" "$DOWNLOAD_SET"
+  printlog "Downloading: $DOWNLOAD_SET"
+  progprocess
 fi
+printlog ""
+printlog "Finished at `date`"
