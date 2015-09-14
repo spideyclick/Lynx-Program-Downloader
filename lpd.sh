@@ -106,10 +106,14 @@ while getopts hrtfc:i:s: OPT ; do
     ;;
     s)
       DOWNLOAD_SELECTION="$OPTARG"
-      DOWNLOAD_SET="`downloadsetget "$DOWNLOAD_SELECTION"`"
-      if [ "$DOWNLOAD_SET" == "" ] ; then
-        printlog "$DOWNLOAD_SELECTION not found in available categories for download: $CATEGORIES" "failed"
-        exit 1
+      if [ "$DOWNLOAD_SELECTION" == "all" ] ; then
+        DOWNLOAD_SET="$CATEGORIES"
+      else
+        DOWNLOAD_SET="`downloadsetget "$DOWNLOAD_SELECTION"`"
+        if [ "$DOWNLOAD_SET" == "" ] ; then
+          printlog "$DOWNLOAD_SELECTION not found in available categories for download: $CATEGORIES" "failed"
+          exit 1
+        fi
       fi
     ;;
     f)
