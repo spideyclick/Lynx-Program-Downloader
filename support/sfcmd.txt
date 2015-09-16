@@ -1,0 +1,16 @@
+# Command logfile created by Lynx 2.8.8pre.4 (04 Feb 2014)
+# Arg0 = lynx
+# Arg1 = -accept_all_cookies
+# Arg2 = -cmd_log=sfcmd.txt
+# Arg3 = http://sourceforge.net/projects/filezilla/files/latest/download
+key d
+key /
+key s
+key a
+key v
+key e
+key ^J
+key ^J
+key ^J
+key q
+key q
