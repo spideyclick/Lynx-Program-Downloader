@@ -88,7 +88,7 @@ while getopts hrtfc:i:s: OPT ; do
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
       printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
       if [ "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" != "" ] ; then
-      rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "files cleared"
+      rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "bad files cleared"
       else printlog "no files to clear"
       fi
     ;;
@@ -101,7 +101,7 @@ while getopts hrtfc:i:s: OPT ; do
       printlog "Downloading to $DOWNLOAD_DIRECTORY."
     ;;
     i)
-      DOWNLOADER="$OPTARG."
+      DOWNLOADER="$OPTARG"
       printlog "$DOWNLOADER will be appended to filenames."
     ;;
     s)
@@ -224,12 +224,12 @@ progupdatechk () {
     db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
   else
     printlog "File is new! Moving to download folder..."
-    if [ -z != $DOWNLOADER ] ; then NEW_FILE="${FILE%%.*}($DOWNLOADER).${FILE#*.}" ; fi
-    mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$CATEGORY/$FILE"
+    if [ -z != $DOWNLOADER ] ; then NEW_FILE="${FILE%%.*}($DOWNLOADER).${FILE#*.}" ; else NEW_FILE="$FILE" ; fi
+    mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$CATEGORY/$NEW_FILE"
     db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
-    db "$PROGRAM_NAME" 4 "$FILE"
+    db "$PROGRAM_NAME" 4 "$NEW_FILE"
     db "$PROGRAM_NAME" 5 "$MD5_NEW"
-    printlog "Download success of $FILE from $URL"
+    printlog "Download success of $NEW_FILE from $URL"
   fi
   }
 
@@ -318,7 +318,7 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
       printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
       if [ "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" != "" ] ; then
-        rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "files cleared"
+        rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "bad files cleared"
       else printlog "no files to clear"
       fi
     fi
@@ -359,7 +359,7 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
     if [ "$UNKNOWN_OPT" == "1" ] ; then
       DOWNLOAD_SET=`downloadsetget "$DOWNLOAD_SELECTION"`
       if [ -z "$DOWNLOAD_SET" ] ; then
-        printlog "$DOWNLOAD_SELECTION not found in available categories for download: $CATEGORIES" "failed"
+        printlog "I beg your pardon?"
       else
         printlog "Downloading: $DOWNLOAD_SET"
         progprocess
