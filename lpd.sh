@@ -206,8 +206,8 @@ progdownload () {
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
   elif echo "$URL" | grep -q "http://filehippo.com/download_" ; then
     lynx -cmd_script="$WORKINGDIR/support/fhcmd.txt" --accept-all-cookies $URL
-#   elif echo "$URL" | grep -q "http://www.sourceforge.net" ; then
-#     lynx -cmd_script="$WORKINGDIR/support/sfcmd.txt" --accept-all-cookies $URL
+  elif echo "$URL" | grep -q "http://sourceforge.net" ; then
+    lynx -cmd_script="$WORKINGDIR/support/sfcmd.txt" --accept-all-cookies $URL
   else wget $URL
   fi
   }
