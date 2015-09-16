@@ -170,6 +170,7 @@ depcheck () {
 
 db () {
 # This function alone is the reason that 64 MUST be placed BEFORE the program title in the config file.
+# Blank fields will be replaced with a '-'. This makes blank columns stay in place.
   if [ "$1" == "-h" ] || [ "$1" == "--help" ] || [ "$1" == "-help" ] ; then
     echo "db:  a function for requesting or modifying information from csv files. Assumes \$CONFIG_FILE Exists."
     echo "Usage: filemod PROGRAM_NAME FIELD_NUMBER VALUE(opt)"
@@ -179,7 +180,7 @@ db () {
     echo "filemod PuTTY 0 #This requests the line number of an entry."
     return 0
   fi
-  CURLINE=$(cat "$CONFIG_FILE" | grep -i -n "^$1" | sed 0,/\:/{s/\:/\>/})
+  CURLINE=$(cat "$CONFIG_FILE" | grep -i -n "^$1" | sed 0,/\:/{s/\:/\>/} | sed "s/>>/>->/g")
   if [ -z "$CURLINE" ] ; then printlog "Entry not found in config!" "failed" ; fi
   IFS='>' read -a CURLINE <<< "$CURLINE"
   if [ -z != $3 ] ; then
@@ -193,7 +194,7 @@ db () {
     done
     sed -i ${CURLINE[0]}s~.*~"$NEWLINE"~ "$CONFIG_FILE"
   elif [ -z != $2 ] ; then
-    if [ "${CURLINE[$2]}" == "" ] ; then echo "field empty"
+    if [ "${CURLINE[$2]}" == "-" ] || [ "${CURLINE[$2]}" == "" ] ; then echo "field empty"
     else echo "${CURLINE[$2]}"
     fi
   fi
@@ -203,6 +204,8 @@ progdownload () {
   printlog "attmpting download from $URL"
   if echo "$URL" | grep -q "http://www.majorgeeks.com/" ; then
     lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
+  elif echo "$URL" | grep -q "http://filehippo.com/download_" ; then
+    lynx -cmd_script="$WORKINGDIR/support/fhcmd.txt" --accept-all-cookies $URL
 #   elif echo "$URL" | grep -q "http://www.sourceforge.net" ; then
 #     lynx -cmd_script="$WORKINGDIR/support/sfcmd.txt" --accept-all-cookies $URL
   else wget $URL
