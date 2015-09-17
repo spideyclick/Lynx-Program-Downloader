@@ -192,6 +192,7 @@ db () {
       COL_NUM=$((COL_NUM + 1))
       NEWLINE="$NEWLINE${CURLINE[$COL_NUM]}>"
     done
+    NEWLINE="${NEWLINE%?}"
     sed -i ${CURLINE[0]}s~.*~"$NEWLINE"~ "$CONFIG_FILE"
   elif [ -z != $2 ] ; then
     if [ "${CURLINE[$2]}" == "-" ] || [ "${CURLINE[$2]}" == "" ] ; then echo "field empty"
