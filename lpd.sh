@@ -105,7 +105,7 @@ while getopts hrtfc:i:s: OPT ; do
       printlog "Downloads will go to $DOWNLOAD_DIRECTORY."
     ;;
     i)
-      DOWNLOADER="$OPTARG."
+      DOWNLOADER="$OPTARG"
       printlog "$DOWNLOADER will be appended to filenames."
     ;;
     s)
@@ -196,6 +196,7 @@ db () {
       COL_NUM=$((COL_NUM + 1))
       NEWLINE="$NEWLINE${CURLINE[$COL_NUM]}>"
     done
+    NEWLINE="${NEWLINE%?}"
     sed -i ${CURLINE[0]}s~.*~"$NEWLINE"~ "$CONFIG_FILE"
   elif [ -z != $2 ] ; then
     if [ "${CURLINE[$2]}" == "-" ] || [ "${CURLINE[$2]}" == "" ] ; then echo "field empty"
@@ -228,10 +229,10 @@ progupdatechk () {
     db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
   else
     printlog "File is new! Moving to download folder..."
-    if [ -z != $DOWNLOADER ] ; then NEW_FILE="${FILE%%.*}($DOWNLOADER).${FILE#*.}" ; fi
-    mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$CATEGORY/$FILE"
+    if [ -z != $DOWNLOADER ] ; then NEW_FILE="${FILE%%.*}($DOWNLOADER).${FILE#*.}" ; else NEW_FILE="$FILE" ; fi
+    mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/$CATEGORY/$NEW_FILE"
     db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
-    db "$PROGRAM_NAME" 4 "$FILE"
+    db "$PROGRAM_NAME" 4 "$NEW_FILE"
     db "$PROGRAM_NAME" 5 "$MD5_NEW"
     printlog "SUCCESS: $FILE from $URL"
   fi
@@ -363,7 +364,6 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
     if [ "$UNKNOWN_OPT" == "1" ] ; then
       DOWNLOAD_SET=`downloadsetget "$DOWNLOAD_SELECTION"`
       if [ -z "$DOWNLOAD_SET" ] ; then
-        echo ""
         echo "I beg your pardon?"
       else
         printlog "Downloading: $DOWNLOAD_SET"

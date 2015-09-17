@@ -2,3 +2,7 @@
 exe
 zip
 .7z
+.xz
+.gz
+msi
+rar
