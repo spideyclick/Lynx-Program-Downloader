@@ -1,33 +1,38 @@
 # Lynx-Program-Downloader
 
-This is a bash shell script that downloads and sorts files from websites that require you to go through several pages to initiate a download, and it uses Lynx to do so.  It's been designed for a monthly download system a person could use to keep fresh downloads of new and updated programs ready at any time for use with a variety of different download sites such as majorgeeks.com.
+Welcome to Lynx Program Downloader. This program was created to automatically download files from the internet using the terminal-based Lynx web browser. It's designed for a monthly download system that a person could use to keep fresh downloads of new and updated programs ready at any time for use with a variety of different download sites. On a server, you could schedule it as a CRON job to run with no user input using the -s option.
 
-This script is made to run on Linux and BSD systems that use Bash.  It has a smart dependency checker to make sure you have lynx, wget and MD5 installed, and if you don't, it will offer to install them for you (with apt- and rpm-based package managers only!).  You can specify sets of programs to download individually or all at once, use your initials to show who ran the backup when, and it also checks to see when a program was updated (changed) and keeps track of it all in a CSV document.
+Programs are downloaded in batches designated by category in the database (the CSV file in the support directory). There, you can set different mirrors, names and categories for programs, as well as see their download history, filename and MD5 hash. URLs that match a given pattern will be downloaded with an existing download script (also found in the support directory), if available. Otherwise, they will be downloaded via wget.
 
-Please note, I am not trying to replace the apt- or rpm-based package systems already out there--this program will not install a thing on your hard drive.  In fact, if you wanted a command-line package manager for Windows, I'm sure Chocolatey would work better for you (chocolatey.org).  This script is just for a Linux system to download and organize files from the internet on sites that try to make it difficult.
-
-For more information about Lynx (the real magic behind this script), visit lynx.isc.org
-
-Right now, the program just works with majorgeeks.com.  But any site that is usable with common browsers can be supported by adding more lynx scripts to the /support directory.  Sites such as filehippo, sourceforge and more should be easily scriptable.
-
-I am working on a version 1 release so far, and have a couple features I want to include before calling it ready yet--see the issue tracker for details.  Things like dynamic URL reading and multiple mirror processing.
-
-If you want to keep regular, monthly, organized downloads, give this script a try!  On a server, you sould be able to schedule it as a CRON job with no user input using the -s option.
+It runs on systems that use Bash and includes a smart dependency checker to make sure you have lynx, wget and MD5 installed, and if you don't, it will offer to install them for you (with apt- and rpm-based package managers).
 
 If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script.
-
 If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script.
+If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'.
 
-To specify which file extensions to consider as usable, edit support/whiteexts.txt to include your own!
+Please note, I am not trying to replace the apt-, rpm- or chocolatey-based package systems already out there. This program will not install a thing, but instead downloads and organizes files from the internet on sites that try to make it difficult to do batch downloads.
 
-Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [DOWNLOAD SET] -c [DOWNLOAD DIRECTORY]
+For more information about Lynx, visit lynx.isc.org
 
-  -h            prints this help message and exit
+# Database Format
 
-  -i            Specify initials to be appended to file names
+The database that keeps track of download date, MD5 hash, filename and URLs can be found under the support directory. There are a couple quirks that it has:
+ - Columns need to be separated by the '>' character. I can't think of a better one, and it expects that character in many places in the program now.
+ - 64-bit applications need to have a 64 come before the name. Reason being, if the program sees 'x' and 'x_64', it will see the two entries as one, and you may miss out on a download. '64_x' avoids this problem.
+ - You need to watch which URLS you put in. http://website/program vs http://website/program/download makes all the difference to the download scripts, because those are typically very different pages.
+ - Keep in mind, I have made this program with the intent of being easily scriptable. If you find a site you come to for many different downloads, go ahead and save the actions it takes to download from a web page and submit it to the git repo! This usually requires a command such as: lynx -accept_all_cookies -cmd_log="cmd.txt" http://your/URL/here
 
-  -s            Choose from a predefined set of downloads
+# Command Format
 
-  -c            Configure download directory to place new downloads in
+Usage: pdu.sh -hrf -i [USER'S INITIALS]... -s [\"CATGORIES CATEGORIES\"] -c [DOWNLOAD_DIRECTORY]
+  -h    prints this help message and exit
+  -r    resets all logs, remove bad files
+  -f    force downloading of programs already downloaded this month
+  -i    Specify initials to be appended to file names
+  -s    Choose a set of downloads according to category in the CSV file
+  -c    Configure download directory to place new downloads
 
-  -r            resets all logs
+Lynx Program Downloader 1.0
+Licenced under the GNU General Public License, Version 2
+Authored by Zachary (spideyclick) Hubbell. Code maintained at GitHub (send bug reports here!):
+https://github.com/spideyclick/Lynx-Program-Downloader

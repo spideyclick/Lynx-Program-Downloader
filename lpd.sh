@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Lynx Program Downloader 1.0
+# Licenced under the GNU General Public License, Version 2
+# Refer to readme.md for details on what this program is and how to use it.
+# Authored by Zachary (spideyclick) Hubbell. Code maintained at GitHub (send bug reports here!):
+# https://github.com/spideyclick/Lynx-Program-Downloader
 
 ###CLEAR VARIABLES
 DOWNLOAD_SET=""
@@ -17,10 +22,10 @@ DOWNLOAD_DATE="`date +%Y-%m`"
 WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ###CONFIGURATION
-FORCE_DOWNLOADS="off" # set to "off" or "on"
-CONFIG_FILE="$WORKINGDIR/support/program_list.csv" # path to your CSV file, see support/program_list.csv for an example.
-DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads" # path to save downloads in
 MIN_NEW_DOWNLOAD_DAYS="7" # how many days old does a program need to be for you to want it re-downloaded?
+FORCE_DOWNLOADS="off" # set to "on" to ignore MIN_NEW_DOWNLOAD_DAYS limit by default, or set to "off" to keep the limit relevant.
+CONFIG_FILE="$WORKINGDIR/support/program_list.csv" # path to your CSV file, see support/program_list.csv for an example.
+DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads" # default path to your downlad directory of choice.
 
 ###MAKE DIRECTORIES
 mkdir $DOWNLOAD_DIRECTORY 2> /dev/null
@@ -68,28 +73,27 @@ downloadsetget () {
 while getopts hrtfc:i:s: OPT ; do
   case $OPT in
     h)
-      echo "Usage: pdu.sh -hr -i [USER'S INITIALS]... -s [\"CATGORIES CATEGORIES\"] -c [DOWNLOAD DIRECTORY]"
+      echo "Usage: pdu.sh -hrf -i [USER'S INITIALS]... -s [\"CATGORIES CATEGORIES\"] -c [DOWNLOAD_DIRECTORY]"
       echo "  -h    prints this help message and exit"
       echo "  -r    resets all logs, remove bad files"
       echo "  -f    force downloading of programs already downloaded this month"
-      echo "  -c    Configure download directory to place new downloads in"
       echo "  -i    Specify initials to be appended to file names"
       echo "  -s    Choose a set of downloads according to category in the CSV file"
+      echo "  -c    Configure download directory to place new downloads"
       echo ""
-      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
-      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+      echo "Welcome to Lynx Program Downloader. This program was created to automatically download files from the internet using the terminal-based Lynx web browser."
+      echo "Programs are downloaded in batches designated by category in the database (the CSV file in the support directory). There, you can set different mirrors, names and categories for programs, as well as see their download history, filename and MD5 hash. URLs that match a given pattern will be downloaded with an existing download script (also found in the support directory), if available. Otherwise, they will be downloaded via wget."
       echo "If you would like to save where the downloads go by default, you can change the variable \$DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
       echo "If you would like to save the default downloader initials, put something inside the \$DOWNLOADER variable at the beginning of the script."
       echo "If you would like to force downloads whether done this month or not, change the \$FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
       exit 0
     ;;
     r)
-      printlog "renaming download_progress.log to download_progress_`date`.log"
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
       printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
       if [ "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" != "" ] ; then
-      rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "files cleared"
-      else printlog "no files to clear"
+      rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "bad files cleared"
+      else printlog "no bad files to clear"
       fi
     ;;
     t)
@@ -98,7 +102,7 @@ while getopts hrtfc:i:s: OPT ; do
     ;;
     c)
       DOWNLOAD_DIRECTORY="$OPTARG"
-      printlog "Downloading to $DOWNLOAD_DIRECTORY."
+      printlog "Downloads will go to $DOWNLOAD_DIRECTORY."
     ;;
     i)
       DOWNLOADER="$OPTARG."
@@ -143,25 +147,25 @@ pckmgrchk () {
 depcheck () {
   which "$1" >> /dev/null
   if [ "$?" != "0" ] ; then
-    printlog "This program requires $1 to be installed in order to run properly.  You can install it by typing:" "failed"
+    printlog "This program requires $1 to be installed in order to run properly. You can install it by typing:" "failed"
     if [ "$PKGMAN" == "apt" ] ; then
       printlog "sudo apt-get install $1"
       INSACTN="apt-get"
     elif [ "$PKGMAN" == "rpm" ] ; then
       printlog "yum install $1"
       INSACTN="yum"
-    else printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" "failed" && return 1
+    else printlog "Package manager not recognized! Please make sure rpm or apt are installed and working!" "failed" && return 1
     fi
-    printlog "Or we can try to install it right now.  Would you like to? (Y/N)"
+    printlog "Or we can try to install it right now. Would you like to? (Y/N)"
     UINPUT=0
-    read UINPUT # grab first letter of input, upper or lower it, and check for THAT input.  Shorter.
+    read UINPUT
     until [ $UINPUT == "exit" ] ; do
       if [ $UINPUT == "Y" ] || [ $UINPUT == "y" ] || [ $UINPUT == "yes" ] || [ $UINPUT == "Yes" ] || [ $UINPUT == "YES" ] ; then
         printlog "Installing $1..."
         sudo $INSACTN install $1
-	UINPUT="exit"
+        UINPUT="exit"
       elif [ $UINPUT == "N" ] || [ $UINPUT == "n" ] || [ $UINPUT == "no" ] || [ $UINPUT == "No" ] || [ $UINPUT == "NO" ] ; then
-	    printlog "Package install cancelled." "failed" && return 0
+        printlog "Package install cancelled." "failed" && return 0
       else echo "I beg your pardon?"
       fi
     done
@@ -229,7 +233,7 @@ progupdatechk () {
     db "$PROGRAM_NAME" 3 `date +%Y-%m-%d`
     db "$PROGRAM_NAME" 4 "$FILE"
     db "$PROGRAM_NAME" 5 "$MD5_NEW"
-    printlog "Download success of $FILE from $URL"
+    printlog "SUCCESS: $FILE from $URL"
   fi
   }
 
@@ -305,7 +309,8 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
     UNKNOWN_OPT="1"
     echo ""
     echo "Which batch would you like to download?"
-    echo "all $CATEGORIES clear_logs configure force help exit"
+    echo "all$CATEGORIES"
+    echo "clear_logs configure force help exit"
     read DOWNLOAD_SELECTION
     if [ "$DOWNLOAD_SELECTION" == "all" ] ; then
       UNKNOWN_OPT="0"
@@ -314,12 +319,11 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
     fi
     if [ "$DOWNLOAD_SELECTION" == "clear_logs" ]; then
       UNKNOWN_OPT="0"
-      printlog "renaming download_progress.log to download_progress_`date`.log"
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
       printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
       if [ "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" != "" ] ; then
-        rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "files cleared"
-      else printlog "no files to clear"
+        rm -f $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/* && printlog "bad files cleared"
+      else printlog "no bad files to clear"
       fi
     fi
     if [ "$DOWNLOAD_SELECTION" == "configure" ]; then
@@ -338,28 +342,29 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
       echo "  help          prints this help message and exit"
       echo "  exit          end the program"
       echo ""
-      echo "Welcome to the Program Downloader Utility (PDU).  This program was created to automatically download programs from the internet using the terminal-based Lynx web browser."
-      echo "Configuration files can be found in the support/ directory.  Every URL given in the categories will be downloaded into a matching subfolder.  At this time, only websites from majorgeeks.com are supported, and you will want to put the download page in line, NOT the general information page.  This allows you to choose which mirror you'd like to download.  For all other direct downloads, you can put them in 'unsorted', and they will be downloaded via wget."
+      echo "Welcome to Lynx Program Downloader. This program was created to automatically download files from the internet using the terminal-based Lynx web browser."
+      echo "Programs are downloaded in batches designated by category in the database (the CSV file in the support directory). There, you can set different mirrors, names and categories for programs, as well as see their download history, filename and MD5 hash. URLs that match a given pattern will be downloaded with an existing download script (also found in the support directory), if available. Otherwise, they will be downloaded via wget."
       echo "If you would like to save where the downloads go by default, you can change the variable \$DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
       echo "If you would like to save the default downloader initials, put something inside the \$DOWNLOADER variable at the beginning of the script."
       echo "If you would like to force downloads whether done this month or not, change the \$FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
-	fi
+    fi
     if [ "$DOWNLOAD_SELECTION" == "force" ]; then
       UNKNOWN_OPT="0"
       if [ $FORCE_DOWNLOADS == "off" ] ; then
         FORCE_DOWNLOADS="on"
       else FORCE_DOWNLOADS="off"
       fi
+      echo ""
       printlog "Toggle force programs downloaded this month to be downloaded again: $FORCE_DOWNLOADS"
     fi
     if [ "$DOWNLOAD_SELECTION" == "exit" ]; then
-      UNKNOWN_OPT="0"
       break
     fi
     if [ "$UNKNOWN_OPT" == "1" ] ; then
       DOWNLOAD_SET=`downloadsetget "$DOWNLOAD_SELECTION"`
       if [ -z "$DOWNLOAD_SET" ] ; then
-        printlog "$DOWNLOAD_SELECTION not found in available categories for download: $CATEGORIES" "failed"
+        echo ""
+        echo "I beg your pardon?"
       else
         printlog "Downloading: $DOWNLOAD_SET"
         progprocess
