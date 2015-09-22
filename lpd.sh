@@ -13,17 +13,16 @@ DOWNLOAD_SELECTION=""
 UNKNOWN_OPT=""
 CATEGORY=""
 
-TEST="0"
+TEST=0
 # !!!TEST copy this line wherever you need the script to stop in a test
-if [ "$TEST" == "1" ] ; then return 0 ; fi
+if [ "$TEST" -eq 1 ] ; then return 0 ; fi
 
 ###SET VARIABLES
 DOWNLOAD_DATE="`date +%Y-%m`"
 WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 ###CONFIGURATION
-MIN_NEW_DOWNLOAD_DAYS="7" # how many days old does a program need to be for you to want it re-downloaded?
-FORCE_DOWNLOADS="off" # set to "on" to ignore MIN_NEW_DOWNLOAD_DAYS limit by default, or set to "off" to keep the limit relevant.
+FORCE_DOWNLOADS="off" # set to "on" to re-download programs already downloaded this month, or set to "off" to skip them.
 CONFIG_FILE="$WORKINGDIR/support/program_list.csv" # path to your CSV file, see support/program_list.csv for an example.
 DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads" # default path to your downlad directory of choice.
 
@@ -73,7 +72,7 @@ downloadsetget () {
 while getopts hrtfc:i:s: OPT ; do
   case $OPT in
     h)
-      echo "Usage: pdu.sh -hrf -i [USER'S INITIALS]... -s [\"CATGORIES CATEGORIES\"] -c [DOWNLOAD_DIRECTORY]"
+      echo "Usage: $0 [-hrf] [-i USER'S INITIALS] [-s \"CATGORIES CATEGORIES\"] [-c DOWNLOAD_DIRECTORY]"
       echo "  -h    prints this help message and exit"
       echo "  -r    resets all logs, remove bad files"
       echo "  -f    force downloading of programs already downloaded this month"
@@ -130,12 +129,12 @@ done
 ###FUNCTIONS
 pckmgrchk () {
   which rpm >> /dev/null
-  if [ "$?" == "0" ] ; then
+  if [ $? -eq 0 ] ; then
     PKGMAN="rpm"
     printlog "Package Manager: $PKGMAN"
   fi
   which apt >> /dev/null
-  if [ "$?" == "0" ] ; then
+  if [ $? -eq 0 ] ; then
     PKGMAN="apt"
     printlog "Package Manager: $PKGMAN"
   fi
@@ -146,7 +145,7 @@ pckmgrchk () {
 
 depcheck () {
   which "$1" >> /dev/null
-  if [ "$?" != "0" ] ; then
+  if [ $? -ne 0 ] ; then
     printlog "This program requires $1 to be installed in order to run properly. You can install it by typing:" "failed"
     if [ "$PKGMAN" == "apt" ] ; then
       printlog "sudo apt-get install $1"
@@ -158,8 +157,8 @@ depcheck () {
     fi
     printlog "Or we can try to install it right now. Would you like to? (Y/N)"
     UINPUT=0
-    read UINPUT
     until [ $UINPUT == "exit" ] ; do
+      read UINPUT
       if [ $UINPUT == "Y" ] || [ $UINPUT == "y" ] || [ $UINPUT == "yes" ] || [ $UINPUT == "Yes" ] || [ $UINPUT == "YES" ] ; then
         printlog "Installing $1..."
         sudo $INSACTN install $1
@@ -256,7 +255,7 @@ progprocess () {
         cd "$WORKINGDIR/tmp"
         TRY=1
         URLNUM=5
-        while [ $TRY == 1 ] ; do
+        while [ $TRY -eq 1 ] ; do
           URLNUM=$((URLNUM + 1))
           URL=`db $PROGRAM_NAME $URLNUM`
           if [ "$URL" == "field empty" ] ; then
@@ -271,7 +270,7 @@ progprocess () {
               EXT=`echo -n $FILE | tail -c 3`
               BAD=`cat "$WORKINGDIR/support/whiteexts.txt" | grep -v "#" | grep -cim1 "$EXT"`
               until [ -z "$FILE" ] ; do
-                if [ $BAD == "0" ] ; then
+                if [ $BAD -eq 0 ] ; then
                   mv "$FILE" "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/$FILE"
                   printlog "Download $FILE is of unknown type. $URL" "failed"
                 else
@@ -306,20 +305,20 @@ depcheck md5sum
 mkdir "$DOWNLOAD_DIRECTORY/`date +%Y-%m`" 2> /dev/null
 mkdir "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles" 2> /dev/null
 if [ -z "$DOWNLOAD_SELECTION" ] ; then
-  while [ 1 == 1 ] ; do
-    UNKNOWN_OPT="1"
+  while [ 1 -eq 1 ] ; do
+    UNKNOWN_OPT=1
     echo ""
     echo "Which batch would you like to download?"
     echo "all$CATEGORIES"
     echo "clear_logs configure force help exit"
     read DOWNLOAD_SELECTION
     if [ "$DOWNLOAD_SELECTION" == "all" ] ; then
-      UNKNOWN_OPT="0"
+      UNKNOWN_OPT=0
       DOWNLOAD_SET="$CATEGORIES"
       progprocess
     fi
     if [ "$DOWNLOAD_SELECTION" == "clear_logs" ]; then
-      UNKNOWN_OPT="0"
+      UNKNOWN_OPT=0
       mv $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress.log "$DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/download_progress_`date`.log"
       printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
       if [ "`ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/`" != "" ] ; then
@@ -328,12 +327,12 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
       fi
     fi
     if [ "$DOWNLOAD_SELECTION" == "configure" ]; then
-      UNKNOWN_OPT="0"
+      UNKNOWN_OPT=0
       echo "Please enter the path to the folder you would like your new downloads to be dropped off:"
       read DOWNLOAD_DIRECTORY
     fi
     if [ "$DOWNLOAD_SELECTION" == "help" ]; then
-      UNKNOWN_OPT="0"
+      UNKNOWN_OPT=0
       echo ""
       echo "Options: all antivirus creative utilities office clear_logs configure force help exit"
       echo "  all           download all program entries"
@@ -350,7 +349,7 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
       echo "If you would like to force downloads whether done this month or not, change the \$FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
     fi
     if [ "$DOWNLOAD_SELECTION" == "force" ]; then
-      UNKNOWN_OPT="0"
+      UNKNOWN_OPT=0
       if [ $FORCE_DOWNLOADS == "off" ] ; then
         FORCE_DOWNLOADS="on"
       else FORCE_DOWNLOADS="off"
@@ -361,7 +360,7 @@ if [ -z "$DOWNLOAD_SELECTION" ] ; then
     if [ "$DOWNLOAD_SELECTION" == "exit" ]; then
       break
     fi
-    if [ "$UNKNOWN_OPT" == "1" ] ; then
+    if [ $UNKNOWN_OPT -eq 1 ] ; then
       DOWNLOAD_SET=`downloadsetget "$DOWNLOAD_SELECTION"`
       if [ -z "$DOWNLOAD_SET" ] ; then
         echo "I beg your pardon?"
