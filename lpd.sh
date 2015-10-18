@@ -12,14 +12,14 @@ PKGMAN=""
 DOWNLOAD_SELECTION=""
 UNKNOWN_OPT=""
 CATEGORY=""
-
 TEST=0
+
 # !!!TEST copy this line wherever you need the script to stop in a test
-if [ ${TEST} -eq 1 ] ; then return 0 ; fi
+if [ ${TEST} -eq 1 ] ; then exit 0 ; fi
 
 ###SET VARIABLES
-DOWNLOAD_DATE="`date +%Y-%m`"
 WORKINGDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DOWNLOAD_DATE="$(date +%Y-%m)"
 
 ###CONFIGURATION
 FORCE_DOWNLOADS="off" # set to "on" to re-download programs already downloaded this month, or set to "off" to skip them.
@@ -70,7 +70,7 @@ downloadsetget () {
 while getopts hrtfc:i:s: OPT ; do
   case "${OPT}" in
     h)
-      echo "Usage: $0 [-hrf] [-i USER'S INITIALS] [-s \"CATGORIES CATEGORIES\"] [-c DOWNLOAD_DIRECTORY]"
+      echo "Usage: bash $0 [-hrf] [-i USER'S INITIALS] [-s \"CATGORIES CATEGORIES\"] [-c DOWNLOAD_DIRECTORY]"
       echo "  -h    prints this help message and exit"
       echo "  -r    resets all logs, remove bad files"
       echo "  -f    force downloading of programs already downloaded this month"
@@ -86,8 +86,8 @@ while getopts hrtfc:i:s: OPT ; do
       exit 0
     ;;
     r)
-      mv "${DOWNLOAD_DIRECTORY}/${DOWNLOAD_DATE}/download_progress.log" "${DOWNLOAD_DIRECTORY}/${DOWNLOAD_DATE}/download_progress_`date`.log"
-      printlog "logs cleared:  renamed download_progress.log to download_progress_`date`.log"
+      mv "${DOWNLOAD_DIRECTORY}/${DOWNLOAD_DATE}/download_progress.log" "${DOWNLOAD_DIRECTORY}/${DOWNLOAD_DATE}/download_progress_$(date).log"
+      printlog "logs cleared:  renamed download_progress.log to download_progress_$(date).log"
       if [ "x$(ls $DOWNLOAD_DIRECTORY/$DOWNLOAD_DATE/badfiles/)" != "x" ] ; then
       rm -f ${DOWNLOAD_DIRECTORY}/${DOWNLOAD_DATE}/badfiles/* && printlog "bad files cleared"
       else printlog "no bad files to clear"
@@ -137,7 +137,7 @@ pckmgrchk () {
     printlog "Package Manager: ${PKGMAN}"
   fi
   if [ -z "${PKGMAN}" ] ; then
-    printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" "failed" && return 1
+    printlog "Package manager not recognized!  Please make sure rpm or apt are installed and working!" "failed" && exit 1
   fi
   }
 
@@ -151,7 +151,7 @@ depcheck () {
     elif [ "x${PKGMAN}" == "xrpm" ] ; then
       printlog "yum install ${1}"
       INSACTN="yum"
-    else printlog "Package manager not recognized! Please make sure rpm or apt are installed and working!" "failed" && return 1
+    else printlog "Package manager not recognized! Please make sure rpm or apt are installed and working!" "failed" && exit 1
     fi
     printlog "Or we can try to install it right now. Would you like to? (Y/N)"
     UINPUT=0
@@ -217,7 +217,7 @@ progdownload () {
 progupdatechk () {
   OLD_FILE_NAME=$(db ${PROGRAM_NAME} 4)
   MD5_OLD=$(db ${PROGRAM_NAME} 5)
-  IFS=' ' read -a MD5_NEW <<< `md5sum ${FILE}`
+  IFS=' ' read -a MD5_NEW <<< $(md5sum ${FILE})
   MD5_NEW=${MD5_NEW[0]}
   if [ "x${MD5_NEW}" == "x${MD5_OLD}" ] ; then
     printlog "File has not changed since last download.  Deleting and moving old file to new download directory..."
