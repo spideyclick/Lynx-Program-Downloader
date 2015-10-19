@@ -23,8 +23,8 @@ DOWNLOAD_DATE="$(date +%Y-%m)"
 
 ###CONFIGURATION
 FORCE_DOWNLOADS="off" # set to "on" to re-download programs already downloaded this month, or set to "off" to skip them.
-CONFIG_FILE="$WORKINGDIR/support/program_list.csv" # path to your CSV file, see support/program_list.csv for an example.
-DOWNLOAD_DIRECTORY="$WORKINGDIR/downloads" # default path to your downlad directory of choice.
+CONFIG_FILE="${WORKINGDIR}/support/program_list.csv" # path to your CSV file, see support/program_list.csv for an example.
+DOWNLOAD_DIRECTORY="${WORKINGDIR}/downloads" # default path to your downlad directory of choice.
 
 ###MAKE DIRECTORIES
 mkdir "${DOWNLOAD_DIRECTORY}" 2> /dev/null
@@ -80,9 +80,9 @@ while getopts hrtfc:i:s: OPT ; do
       echo ""
       echo "Welcome to Lynx Program Downloader. This program was created to automatically download files from the internet using the terminal-based Lynx web browser."
       echo "Programs are downloaded in batches designated by category in the database (the CSV file in the support directory). There, you can set different mirrors, names and categories for programs, as well as see their download history, filename and MD5 hash. URLs that match a given pattern will be downloaded with an existing download script (also found in the support directory), if available. Otherwise, they will be downloaded via wget."
-      echo "If you would like to save where the downloads go by default, you can change the variable \$DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
-      echo "If you would like to save the default downloader initials, put something inside the \$DOWNLOADER variable at the beginning of the script."
-      echo "If you would like to force downloads whether done this month or not, change the \$FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
+      echo "If you would like to save where the downloads go by default, you can change the variable \${DOWNLOAD_DIRECTORY} in the CONFIG section at the beginning of the script."
+      echo "If you would like to save the default downloader initials, put something inside the \${DOWNLOADER} variable at the beginning of the script."
+      echo "If you would like to force downloads whether done this month or not, change the \${FORCE_DOWNLOADS} variable at the beginning of the script to 'on'."
       exit 0
     ;;
     r)
@@ -149,25 +149,26 @@ depcheck () {
       printlog "sudo apt-get install ${1}"
       INSACTN="apt-get"
     elif [ "x${PKGMAN}" == "xrpm" ] ; then
-      printlog "yum install ${1}"
+      printlog "sudo yum install ${1}"
       INSACTN="yum"
     else printlog "Package manager not recognized! Please make sure rpm or apt are installed and working!" "failed" && exit 1
     fi
     printlog "Or we can try to install it right now. Would you like to? (Y/N)"
     UINPUT=0
-    until [ ${UINPUT} == "exit" ] ; do
+    until [ "x${UINPUT}" == "xexit" ] ; do
       read UINPUT
-      if [ ${UINPUT} == "Y" ] || [ ${UINPUT} == "y" ] || [ ${UINPUT} == "yes" ] || [ ${UINPUT} == "Yes" ] || [ ${UINPUT} == "YES" ] ; then
+      if [ "x${UINPUT}" == "xY" ] || [ "x${UINPUT}" == "xy" ] || [ "x${UINPUT}" == "xyes" ] || [ "x${UINPUT}" == "xYes" ] || [ "x${UINPUT}" == "xYES" ] ; then
         printlog "Installing ${1}..."
         sudo ${INSACTN} install ${1}
         UINPUT="exit"
-      elif [ ${UINPUT} == "N" ] || [ ${UINPUT} == "n" ] || [ ${UINPUT} == "no" ] || [ ${UINPUT} == "No" ] || [ ${UINPUT} == "NO" ] ; then
+      elif [ "x${UINPUT}" == "xN" ] || [ "x${UINPUT}" == "xn" ] || [ "x${UINPUT}" == "xno" ] || [ "x${UINPUT}" == "xNo" ] || [ "x${UINPUT}" == "xNO" ] ; then
         printlog "Package install cancelled." "failed" && return 0
       else echo "I beg your pardon?"
       fi
     done
   else printlog "Dependency check of ${1} success"
-  fi }
+  fi
+  }
 
 db () {
 # This function alone is the reason that 64 MUST be placed BEFORE the program title in the config file.
@@ -203,14 +204,14 @@ db () {
   }
 
 progdownload () {
-  printlog "attmpting download from $URL"
-  if echo "$URL" | grep -q "http://www.majorgeeks.com/" ; then
-    lynx -cmd_script="$WORKINGDIR/support/mgcmd.txt" --accept-all-cookies $URL
-  elif echo "$URL" | grep -q "http://filehippo.com/download_" ; then
-    lynx -cmd_script="$WORKINGDIR/support/fhcmd.txt" --accept-all-cookies $URL
-  elif echo "$URL" | grep -q "http://sourceforge.net" ; then
-    lynx -cmd_script="$WORKINGDIR/support/sfcmd.txt" --accept-all-cookies $URL
-  else wget $URL
+  printlog "attmpting download from ${URL}"
+  if echo "${URL}" | grep -q "http://www.majorgeeks.com/" ; then
+    lynx -cmd_script="${WORKINGDIR}/support/mgcmd.txt" --accept-all-cookies ${URL}
+  elif echo "${URL}" | grep -q "http://filehippo.com/download_" ; then
+    lynx -cmd_script="${WORKINGDIR}/support/fhcmd.txt" --accept-all-cookies ${URL}
+  elif echo "${URL}" | grep -q "http://sourceforge.net" ; then
+    lynx -cmd_script="${WORKINGDIR}/support/sfcmd.txt" --accept-all-cookies ${URL}
+  else wget ${URL}
   fi
   }
 
@@ -342,15 +343,16 @@ if [ -z "${DOWNLOAD_SELECTION}" ] ; then
       echo ""
       echo "Welcome to Lynx Program Downloader. This program was created to automatically download files from the internet using the terminal-based Lynx web browser."
       echo "Programs are downloaded in batches designated by category in the database (the CSV file in the support directory). There, you can set different mirrors, names and categories for programs, as well as see their download history, filename and MD5 hash. URLs that match a given pattern will be downloaded with an existing download script (also found in the support directory), if available. Otherwise, they will be downloaded via wget."
-      echo "If you would like to save where the downloads go by default, you can change the variable \$DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script."
-      echo "If you would like to save the default downloader initials, put something inside the \$DOWNLOADER variable at the beginning of the script."
-      echo "If you would like to force downloads whether done this month or not, change the \$FORCE_DOWNLOADS variable at the beginning of the script to 'on'."
+      echo "If you would like to save where the downloads go by default, you can change the variable \${DOWNLOAD_DIRECTORY} in the CONFIG section at the beginning of the script."
+      echo "If you would like to save the default downloader initials, put something inside the \${DOWNLOADER} variable at the beginning of the script."
+      echo "If you would like to force downloads whether done this month or not, change the \${FORCE_DOWNLOADS} variable at the beginning of the script to 'on'."
     fi
     if [ "x${DOWNLOAD_SELECTION}" == "xforce" ]; then
       UNKNOWN_OPT=0
       if [ "x${FORCE_DOWNLOADS}" == "xoff" ] ; then
         FORCE_DOWNLOADS="on"
-      else FORCE_DOWNLOADS="off"
+      else
+        FORCE_DOWNLOADS="off"
       fi
       echo ""
       printlog "Toggle force programs downloaded this month to be downloaded again: ${FORCE_DOWNLOADS}"
