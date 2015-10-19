@@ -6,9 +6,9 @@ Programs are downloaded in batches designated by category in the database (the C
 
 It runs on systems that use Bash and includes a smart dependency checker to make sure you have lynx, wget and MD5 installed, and if you don't, it will offer to install them for you (with apt- and rpm-based package managers).
 
-If you would like to save where the downloads go by default, you can change the variable $DOWNLOAD_DIRECTORY in the CONFIG section at the beginning of the script.
-If you would like to save the default downloader initials, put something inside the $DOWNLOADER variable at the beginning of the script.
-If you would like to force downloads whether done this month or not, change the $FORCE_DOWNLOADS variable at the beginning of the script to 'on'.
+If you would like to save where the downloads go by default, you can change the variable ${DOWNLOAD_DIRECTORY} in the CONFIG section at the beginning of the script.
+If you would like to save the default downloader initials, put something inside the ${DOWNLOADER} variable at the beginning of the script.
+If you would like to force downloads whether done this month or not, change the ${FORCE_DOWNLOADS} variable at the beginning of the script to 'on'.
 
 Please note, I am not trying to replace the apt-, rpm- or chocolatey-based package systems already out there. This program will not install a thing, but instead downloads and organizes files from the internet on sites that try to make it difficult to do batch downloads.
 
@@ -24,7 +24,7 @@ The database that keeps track of download date, MD5 hash, filename and URLs can 
 
 # Command Format
 
-Usage: pdu.sh -hrf -i [USER'S INITIALS]... -s [\"CATGORIES CATEGORIES\"] -c [DOWNLOAD_DIRECTORY]
+Usage: bash lpd.sh -hrf -i [USER'S INITIALS]... -s [\"CATGORIES CATEGORIES\"] -c [DOWNLOAD_DIRECTORY]
   -h    prints this help message and exit
   -r    resets all logs, remove bad files
   -f    force downloading of programs already downloaded this month
